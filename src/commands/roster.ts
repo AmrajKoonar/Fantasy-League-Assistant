@@ -38,7 +38,7 @@ const roster: BotCommand = {
     .addUserOption((option) =>
       option
         .setName('user')
-        .setDescription('Show another member\'s roster (defaults to you)')
+        .setDescription("Show another member's roster (defaults to you)")
         .setRequired(false),
     ),
 

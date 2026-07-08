@@ -83,6 +83,14 @@ export interface SleeperNflState {
 
 export type SleeperTransactionType = 'trade' | 'waiver' | 'free_agent' | 'commissioner' | string;
 
+export interface SleeperTransactionDraftPick {
+  season: string;
+  round: number;
+  roster_id: number;
+  previous_owner_id: number;
+  owner_id: number;
+}
+
 export interface SleeperTransaction {
   transaction_id: string;
   type: SleeperTransactionType;
@@ -90,7 +98,7 @@ export interface SleeperTransaction {
   roster_ids: number[] | null;
   adds: Record<string, number> | null;
   drops: Record<string, number> | null;
-  draft_picks?: unknown[] | null;
+  draft_picks?: SleeperTransactionDraftPick[] | null;
   waiver_budget?: { sender: number; receiver: number; amount: number }[] | null;
   settings?: { waiver_bid?: number; seq?: number } | null;
   created: number;
@@ -159,6 +167,7 @@ export interface SleeperDraft {
   start_time?: number | null;
   settings?: SleeperDraftSettings;
   draft_order?: Record<string, number> | null;
+  slot_to_roster_id?: Record<string, number> | null;
   metadata?: {
     name?: string;
     scoring_type?: string;

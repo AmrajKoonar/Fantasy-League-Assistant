@@ -55,6 +55,44 @@ create unique index if not exists idx_guild_leagues_one_default_per_guild
   where is_default = true;
 
 -- ============================================================
+-- Table: trade_offers
+-- Discord-only trade proposals created with /trade. These are NOT
+-- submitted to Sleeper (the Sleeper API is read-only) — they are a
+-- social layer for members to agree on a deal before doing it manually
+-- in Sleeper.
+-- ============================================================
+create table if not exists public.trade_offers (
+  id uuid primary key default gen_random_uuid(),
+  guild_id text not null,
+  channel_id text,
+  message_id text,
+  league_id text not null,
+  league_nickname text not null,
+  from_discord_user_id text not null,
+  to_discord_user_id text not null,
+  from_sleeper_user_id text not null,
+  to_sleeper_user_id text not null,
+  from_roster_id integer,
+  to_roster_id integer,
+  send_text text not null,
+  receive_text text not null,
+  parsed_send jsonb,
+  parsed_receive jsonb,
+  status text not null default 'pending',
+  note text,
+  parent_trade_offer_id uuid references public.trade_offers(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists idx_trade_offers_guild_id on public.trade_offers(guild_id);
+create index if not exists idx_trade_offers_league_id on public.trade_offers(league_id);
+create index if not exists idx_trade_offers_from_user on public.trade_offers(from_discord_user_id);
+create index if not exists idx_trade_offers_to_user on public.trade_offers(to_discord_user_id);
+create index if not exists idx_trade_offers_status on public.trade_offers(status);
+create index if not exists idx_trade_offers_created_at on public.trade_offers(created_at);
+
+-- ============================================================
 -- updated_at trigger
 -- ============================================================
 create or replace function public.set_updated_at()
@@ -75,6 +113,11 @@ create trigger trg_guild_leagues_updated_at
   before update on public.guild_leagues
   for each row execute function public.set_updated_at();
 
+drop trigger if exists trg_trade_offers_updated_at on public.trade_offers;
+create trigger trg_trade_offers_updated_at
+  before update on public.trade_offers
+  for each row execute function public.set_updated_at();
+
 -- ============================================================
 -- Row Level Security
 -- The bot uses the service role key, which bypasses RLS.
@@ -83,3 +126,4 @@ create trigger trg_guild_leagues_updated_at
 -- ============================================================
 alter table public.linked_users enable row level security;
 alter table public.guild_leagues enable row level security;
+alter table public.trade_offers enable row level security;

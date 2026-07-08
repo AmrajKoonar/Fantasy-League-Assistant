@@ -28,8 +28,7 @@ function teamLabel(
 function formatMatch(matchup: SleeperBracketMatchup, teamNames: Map<number, string>): string {
   const t1 = teamLabel(matchup, 't1', teamNames);
   const t2 = teamLabel(matchup, 't2', teamNames);
-  const placement =
-    matchup.p === 1 ? ' 🏆 Championship' : matchup.p === 3 ? ' 🥉 3rd place' : '';
+  const placement = matchup.p === 1 ? ' 🏆 Championship' : matchup.p === 3 ? ' 🥉 3rd place' : '';
 
   if (matchup.w !== null && matchup.w !== undefined) {
     const winner = teamNames.get(matchup.w) ?? `Roster ${matchup.w}`;
@@ -104,9 +103,7 @@ const playoffBracket: BotCommand = {
     const sections = [...rounds.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([round, matchups]) => {
-        const lines = matchups
-          .sort((a, b) => a.m - b.m)
-          .map((m) => formatMatch(m, teamNames));
+        const lines = matchups.sort((a, b) => a.m - b.m).map((m) => formatMatch(m, teamNames));
         return `**Round ${round}**\n${lines.join('\n')}`;
       });
 

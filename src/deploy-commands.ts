@@ -34,10 +34,9 @@ async function main(): Promise<void> {
   }
 
   logger.info(`Registering ${body.length} commands to guild ${config.discordGuildId}...`);
-  await rest.put(
-    Routes.applicationGuildCommands(config.discordClientId, config.discordGuildId),
-    { body },
-  );
+  await rest.put(Routes.applicationGuildCommands(config.discordClientId, config.discordGuildId), {
+    body,
+  });
   logger.info('Guild commands registered. They should be available immediately.');
 }
 

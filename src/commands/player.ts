@@ -9,10 +9,7 @@ const player: BotCommand = {
     .setName('player')
     .setDescription('Search the Sleeper player database by name.')
     .addStringOption((option) =>
-      option
-        .setName('name')
-        .setDescription('Player name to search for')
-        .setRequired(true),
+      option.setName('name').setDescription('Player name to search for').setRequired(true),
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {

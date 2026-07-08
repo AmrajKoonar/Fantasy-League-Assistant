@@ -15,3 +15,14 @@ export function combineSleeperPoints(
 export function formatPoints(points: number): string {
   return points.toFixed(2);
 }
+
+/**
+ * Combines and formats Sleeper's split points in one step.
+ * combineSleeperPoints + formatPoints for convenience.
+ */
+export function formatSleeperPoints(
+  base: number | undefined | null,
+  decimal: number | undefined | null,
+): string {
+  return formatPoints(combineSleeperPoints(base, decimal));
+}

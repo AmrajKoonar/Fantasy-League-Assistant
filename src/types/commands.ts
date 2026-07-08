@@ -7,9 +7,7 @@ import type {
 } from 'discord.js';
 
 export type CommandData =
-  | SlashCommandBuilder
-  | SlashCommandOptionsOnlyBuilder
-  | SlashCommandSubcommandsOnlyBuilder;
+  SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder;
 
 /** Shape every file in src/commands must export. */
 export interface BotCommand {

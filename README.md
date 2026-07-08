@@ -8,10 +8,15 @@ Built on the official, free, read-only [Sleeper API](https://docs.sleeper.com/) 
 
 - **Multi-league servers** — link any number of Sleeper leagues to one Discord server, each with a short nickname (`division1`, `moneyleague`, ...).
 - **One-time account linking** — users run `/link_sleeper` once; the bot finds their team in any linked league.
-- **Roster auto-detection** — `/roster` with no options figures out which linked league(s) you're in.
+- **Roster & team auto-detection** — `/roster`, `/team`, `/record`, `/matchup_detail`, and the fun commands figure out which linked league you're in.
 - **Standings, matchups, transactions** — live league data with clean Discord embeds.
+- **League insights** — managers, waiver order, FAAB usage, detailed settings/scoring, bot-calculated power rankings, and fun league records.
+- **Weekly recaps** — highest/lowest scores, biggest blowout, closest matchup, benchwarmer of the week.
+- **Draft tools** — draft order, results by round, and traded picks.
+- **Discord-only trade offers** — propose, accept, decline, and counter trades with buttons and modals (never submitted to Sleeper).
+- **Manual reminders** — owner-only draft and waivers reminders that ping only linked members in the league.
 - **Trending players & player search** — powered by a locally cached copy of Sleeper's player database.
-- **Autocomplete** — the `league` option suggests only the leagues linked to *your* server.
+- **Autocomplete** — the `league` option suggests only the leagues linked to _your_ server.
 - **Built-in caching** — Sleeper responses are cached in memory so the bot stays well under Sleeper's 1000 calls/minute limit.
 
 ## Tech stack
@@ -26,10 +31,11 @@ Built on the official, free, read-only [Sleeper API](https://docs.sleeper.com/) 
 
 ```
 src/
-  index.ts              # Bot entrypoint + interaction handler
+  index.ts              # Bot entrypoint + interaction router (commands, buttons, modals)
   deploy-commands.ts    # Slash command registration script
   config/env.ts         # Env loading + validation
   commands/             # One file per slash command + index.ts registry
+  interactions/         # Button & modal handlers (trade offers)
   services/             # Sleeper API client, caches, league resolver, domain logic
   db/                   # Supabase client + repositories
   utils/                # Embeds, errors, formatting, permissions, logger
@@ -70,7 +76,7 @@ npm install
 ### 4. Create the Supabase project
 
 1. Create a new project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the `linked_users` and `guild_leagues` tables.
+2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the `linked_users`, `guild_leagues`, and `trade_offers` tables. Re-running it is safe (`create table if not exists`), so existing servers can apply the `trade_offers` addition the same way.
 3. In **Project Settings → API**, copy:
    - **Project URL** — this is `SUPABASE_URL`.
    - **`service_role` secret key** — this is `SUPABASE_SERVICE_ROLE_KEY`. This key bypasses row security; it must only ever live on the server running the bot.
@@ -121,36 +127,149 @@ npm start
 
 ## Command list
 
-| Command | Description | Visibility |
-| --- | --- | --- |
-| `/ping` | Health check with latency | Public |
-| `/link_sleeper username:<name>` | Link your Discord account to your Sleeper account | Ephemeral |
-| `/me` | Show your linked Sleeper account | Ephemeral |
-| `/add_league league_id:<id> nickname:<name>` | Link a Sleeper league to this server (owner only) | Ephemeral |
-| `/remove_league nickname:<name>` | Remove a linked league (owner only) | Ephemeral |
-| `/set_default_league nickname:<name>` | Set the server's default league (owner only) | Ephemeral |
-| `/leagues` | List all leagues linked to this server | Public |
-| `/league_info [league]` | League settings, scoring, roster positions | Public |
-| `/standings [league]` | Standings sorted by wins, then points for | Public |
-| `/matchups [league] [week]` | Weekly matchups and scores | Public |
-| `/roster [league] [user]` | A team's starters, bench, IR, and taxi | Public |
-| `/transactions [league] [week]` | Latest 10 transactions for a week | Public |
-| `/trending type:<add\|drop> [hours] [limit]` | Trending adds/drops across Sleeper | Public |
-| `/player name:<name>` | Search the Sleeper player database | Public |
+Run `/help` in Discord for the same overview, grouped and searchable. Options in `[brackets]` are optional; most league commands fall back to the server default league.
+
+### General
+
+| Command         | Description                                | Visibility |
+| --------------- | ------------------------------------------ | ---------- |
+| `/ping`         | Health check with latency                  | Public     |
+| `/help`         | Grouped overview of every command          | Ephemeral  |
+| `/current_week` | Current NFL season, week, and season type  | Public     |
+
+### Account
+
+| Command                         | Description                                        | Visibility |
+| ------------------------------- | -------------------------------------------------- | ---------- |
+| `/link_sleeper username:<name>` | Link your Discord account to your Sleeper account  | Ephemeral  |
+| `/me`                           | Show your linked Sleeper account                   | Ephemeral  |
+| `/my_leagues`                   | Your Sleeper leagues and which are linked here      | Ephemeral  |
+
+### League management (server owner only)
+
+| Command                                      | Description                            | Visibility |
+| -------------------------------------------- | -------------------------------------- | ---------- |
+| `/add_league league_id:<id> nickname:<name>` | Link a Sleeper league to this server   | Ephemeral  |
+| `/remove_league nickname:<name>`             | Remove a linked league                 | Ephemeral  |
+| `/set_default_league nickname:<name>`        | Set the server's default league        | Ephemeral  |
+
+### League info
+
+| Command                     | Description                              | Visibility |
+| --------------------------- | ---------------------------------------- | ---------- |
+| `/leagues`                  | List all leagues linked to this server   | Public     |
+| `/league_info [league]`     | Core settings, scoring, roster positions | Public     |
+| `/league_settings [league]` | Detailed league settings                 | Public     |
+| `/scoring [league]`         | Scoring settings breakdown               | Public     |
+| `/managers [league]`        | All managers (with commissioner marker)  | Public     |
+| `/standings [league]`       | Standings by wins, then points for       | Public     |
+| `/power_rankings [league]`  | **Bot-calculated** power rankings        | Public     |
+| `/league_records [league]`  | Fun league records and extremes          | Public     |
+
+### Matchups
+
+| Command                                | Description                     | Visibility |
+| -------------------------------------- | ------------------------------- | ---------- |
+| `/matchups [league] [week]`            | Weekly matchups and scores      | Public     |
+| `/matchup_detail [league] [week] [user]` | One manager's matchup for a week | Public   |
+| `/weekly_recap [league] [week]`        | Fun recap of a week             | Public     |
+| `/biggest_blowout [league] [week]`     | Largest win margin of a week    | Public     |
+| `/closest_matchup [league] [week]`     | Closest matchup of a week       | Public     |
+
+### Teams
+
+| Command                   | Description                          | Visibility |
+| ------------------------- | ------------------------------------ | ---------- |
+| `/roster [league] [user]` | Starters, bench, IR, taxi            | Public     |
+| `/team [league] [user]`   | Team profile (no full roster)        | Public     |
+| `/record [league] [user]` | Record and point totals              | Public     |
+| `/moves [league]`         | Total roster moves by team           | Public     |
+| `/faab [league]`          | FAAB (waiver budget) usage by team   | Public     |
+| `/waiver_order [league]`  | Waiver priority order                | Public     |
+
+### Draft
+
+| Command                            | Description                   | Visibility |
+| ---------------------------------- | ----------------------------- | ---------- |
+| `/draft [league] [round]`          | Draft info and picks by round | Public     |
+| `/draft_order [league]`            | Draft pick order              | Public     |
+| `/draft_results [league] [round]`  | Draft picks by round          | Public     |
+| `/traded_picks [league]`           | Traded draft picks            | Public     |
+| `/playoff_bracket [league] [bracket]` | Winners/losers bracket     | Public     |
+
+### Transactions & trades
+
+| Command                                                    | Description                                | Visibility |
+| --------------------------------------------------------- | ------------------------------------------ | ---------- |
+| `/transactions [league] [week]`                           | Latest trades/waivers/FA moves             | Public     |
+| `/trade_history [league] [week]`                          | Completed Sleeper trades                   | Public     |
+| `/waiver_history [league] [week]`                         | Waiver and free-agent activity             | Public     |
+| `/trade user:<@user> send:<...> receive:<...> [league] [note]` | **Discord-only** trade proposal      | Public offer / ephemeral errors |
+| `/counteroffer trade_id:<id> [send] [receive] [note]`     | Counter an existing trade offer            | Public offer / ephemeral errors |
+| `/trade_history_local [league] [user]`                    | Discord-only trade offers made via the bot | Public     |
+
+### Players
+
+| Command                                      | Description                       | Visibility |
+| -------------------------------------------- | --------------------------------- | ---------- |
+| `/player name:<name>`                        | Search the Sleeper player database | Public    |
+| `/trending type:<add\|drop> [hours] [limit]` | Trending adds/drops across Sleeper | Public    |
+
+### Reminders (server owner only)
+
+| Command                                      | Description                                       | Visibility |
+| -------------------------------------------- | ------------------------------------------------- | ---------- |
+| `/draftreminder [league] [minutes] [message]` | Ping linked members about the draft (manual)     | Public     |
+| `/waiversreminder [league] [message]`         | Ping linked members to submit waivers (manual)   | Public     |
+
+### Fun
+
+| Command                       | Description                        | Visibility |
+| ----------------------------- | ---------------------------------- | ---------- |
+| `/luck_rating [league] [user]` | How lucky a team has been          | Public     |
+| `/panic_meter [league] [user]` | Playful panic level for a team     | Public     |
+| `/benchwarmer [league] [week]` | Highest bench score of a week      | Public     |
+| `/random_team [league]`        | Randomly pick a team               | Public     |
+| `/trash_talk [league] [user]`  | Light, harmless fantasy joke       | Public     |
 
 Examples:
 
 ```
 /link_sleeper username:myUsername
 /roster
-/roster league:division1
-/roster user:@Friend
-/standings league:division2
-/matchups league:moneyleague week:5
-/transactions league:division3
+/team league:division1 user:@Friend
+/power_rankings league:division2
+/weekly_recap league:moneyleague week:5
+/trade user:@Gurkirat send:"Justin Jefferson + $10 FAAB" receive:"Bijan Robinson"
+/counteroffer trade_id:<uuid> send:"James Cook" receive:"Tee Higgins"
+/draftreminder league:division1 minutes:15
 /trending type:add hours:48 limit:15
 /player name:jefferson
 ```
+
+## Discord-only trade offers
+
+`/trade` creates a **social trade proposal inside Discord** — it is never submitted to Sleeper (the Sleeper API is read-only, so the bot cannot and will not execute real trades, waiver claims, or draft picks). The flow:
+
+1. The sender runs `/trade user:@them send:"..." receive:"..." [league] [note]`.
+2. The bot resolves the league (explicit `league`, or the single league the two managers share; if they share several, it asks you to pick one).
+3. It validates the assets against each manager's **real Sleeper roster**: the `send` players must be on your roster and the `receive` players on theirs. FAAB (e.g. `$10 FAAB`) is accepted as text and never blocks the offer. Ambiguous or unknown player names produce a friendly ephemeral error.
+4. A public offer message pings the target with **Accept / Decline / Counteroffer** buttons.
+5. Only the target manager can respond. Accept/Decline update the message; Counteroffer opens a prefilled modal (or use `/counteroffer trade_id:<id>`) that flips the sides and sends a new offer back to the original sender.
+6. Offers are stored in the `trade_offers` table with statuses `pending`, `accepted`, `declined`, `countered`, `expired`, `cancelled`. `/trade_history_local` lists them.
+
+**If both managers agree, complete the actual trade manually in Sleeper.**
+
+## Reminders (manual in V1)
+
+`/draftreminder` and `/waiversreminder` are **manual, server-owner-only** commands — there is no background scheduler. When run, they immediately ping **only the linked Discord members who are actually in the selected league** (never `@everyone`/`@here`, never members who haven't linked). Long mention lists are chunked across follow-up messages.
+
+- `/draftreminder` shows the draft status and, when Sleeper provides one, the draft start time and countdown. If no start time is available it still sends the reminder and says so.
+- `/waiversreminder` shows the current NFL week and waiver settings. Sleeper does not expose a reliable per-league waiver deadline, so the bot never invents one.
+
+## League autocomplete
+
+Every league-specific command's `league` option offers autocomplete that lists **only the leagues linked to the current server** (with the default marked) — never a user's other personal Sleeper leagues.
 
 ## Multi-league server setup (V1 flow)
 
@@ -191,9 +310,11 @@ When someone runs `/roster` without a league:
 4. If multiple leagues match, the bot asks the user to pick one (e.g. `/roster league:division1` or `/roster league:moneyleague`).
 5. If none match, it explains that the linked Sleeper account isn't in any server-linked league.
 
+The same auto-detection powers `/team`, `/record`, `/matchup_detail`, `/luck_rating`, `/panic_meter`, and `/trash_talk` (each accepting an optional `user`).
+
 ## League selection for other commands
 
-`/league_info`, `/standings`, `/matchups`, and `/transactions` resolve the league in this order:
+League-level commands that are not user-specific (`/league_info`, `/league_settings`, `/scoring`, `/managers`, `/standings`, `/power_rankings`, `/league_records`, `/matchups`, `/weekly_recap`, `/biggest_blowout`, `/closest_matchup`, `/moves`, `/faab`, `/waiver_order`, `/draft*`, `/traded_picks`, `/playoff_bracket`, `/transactions`, `/trade_history`, `/waiver_history`, `/benchwarmer`, `/random_team`, reminders) resolve the league in this order:
 
 1. The `league` option, if provided.
 2. The server's default league.
@@ -204,14 +325,15 @@ When someone runs `/roster` without a league:
 
 All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching:
 
-| Data | TTL |
-| --- | --- |
-| Players database (~5 MB) | 24 hours |
-| League users | 10 minutes |
-| League info, trending | 5 minutes |
-| Rosters, transactions | 2 minutes |
-| NFL state | 1 minute |
-| Matchups | 30 seconds |
+| Data                            | TTL        |
+| ------------------------------- | ---------- |
+| Players database (~5 MB)        | 24 hours   |
+| League users                    | 10 minutes |
+| Brackets, drafts, traded picks  | 10 minutes |
+| League info, trending, user leagues | 5 minutes |
+| Rosters, transactions           | 2 minutes  |
+| NFL state                       | 1 minute   |
+| Matchups                        | 30 seconds |
 
 ## Sleeper API references
 
@@ -225,19 +347,19 @@ All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching
 - Single-process design; running multiple bot instances would each keep their own cache.
 - Standings tiebreakers use wins → points for → losses; Sleeper's own playoff seeding rules may differ.
 - Team names come from Sleeper user metadata; teams without a custom name fall back to the owner's display name.
+- **Trade offers are Discord-only.** The bot never submits trades, waiver claims, or draft picks to Sleeper — the API is read-only. Complete agreed trades manually in Sleeper.
+- **Reminders are manual (V1).** There is no scheduler; an owner runs the reminder command when they want members pinged.
+- Power rankings, luck ratings, and panic meters are **bot-calculated for fun**, not official Sleeper data.
+- FAAB totals are read from league settings when present; if Sleeper doesn't expose a budget the bot shows "unknown" rather than guessing.
+- Benchwarmer scores require per-player points in the matchup payload; before a week is scored the command says so.
 - Only NFL fantasy football is supported.
 
 ## Future feature ideas
 
-- Playoff bracket command
-- Draft board command
-- Traded picks command
-- User leagues command
-- Scheduled weekly matchup recap
-- Automatic weekly scoreboard post
-- Trade summary command
-- Waiver wire command
-- Manager power rankings
+- Scheduled/automatic weekly recap and scoreboard posts (a real background scheduler for reminders)
+- Trade offer expiry and a `/cancel_trade` for senders
+- Season-long records that persist across weeks
+- Head-to-head history between two managers
 - Web dashboard
 - Yahoo Fantasy support later
 - ESPN support later if safe and reliable
@@ -247,4 +369,5 @@ All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching
 - `.env` is gitignored; only `.env.example` is committed.
 - The Supabase **service role key** stays server-side only and is never logged or sent to Discord.
 - The bot never asks for Sleeper passwords — the Sleeper API needs no authentication.
-- No gambling, betting, or money-handling features.
+- No gambling, betting, payment, or money-handling features. "Money League" is just a league nickname; the bot does not track payments or dues.
+- Reminders never use `@everyone`/`@here` and only mention linked members who are in the selected league.

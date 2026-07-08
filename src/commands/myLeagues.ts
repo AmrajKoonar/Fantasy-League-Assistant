@@ -44,9 +44,7 @@ const myLeagues: BotCommand = {
       return;
     }
 
-    const nicknameByLeagueId = new Map(
-      serverLeagues.map((l) => [l.league_id, l.league_nickname]),
-    );
+    const nicknameByLeagueId = new Map(serverLeagues.map((l) => [l.league_id, l.league_nickname]));
 
     const lines = userLeagues.map((league) => {
       const nickname = nicknameByLeagueId.get(league.league_id);

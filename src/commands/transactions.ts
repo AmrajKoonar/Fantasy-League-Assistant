@@ -77,10 +77,7 @@ const transactions: BotCommand = {
       return;
     }
 
-    const embed = infoEmbed(
-      title,
-      truncate(views.map(formatTransaction).join('\n\n'), 4096),
-    );
+    const embed = infoEmbed(title, truncate(views.map(formatTransaction).join('\n\n'), 4096));
 
     await interaction.editReply({ embeds: [embed] });
   },

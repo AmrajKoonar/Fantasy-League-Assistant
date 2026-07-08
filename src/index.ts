@@ -8,6 +8,7 @@ import {
 } from 'discord.js';
 import { config } from './config/env';
 import { commands } from './commands';
+import { handleTradeButton, handleTradeModal } from './interactions/tradeInteractions';
 import { errorEmbed } from './utils/embeds';
 import { UserFacingError } from './utils/errors';
 import { logger } from './utils/logger';
@@ -50,6 +51,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (command?.autocomplete) {
       await command.autocomplete(interaction).catch((err) => {
         logger.error(`Autocomplete failed for /${interaction.commandName}`, err);
+      });
+    }
+    return;
+  }
+
+  // Trade-offer buttons (accept / decline / counter).
+  if (interaction.isButton()) {
+    if (interaction.customId.startsWith('trade:')) {
+      await handleTradeButton(interaction).catch((err) => {
+        logger.error('Trade button handler failed', err);
+      });
+    }
+    return;
+  }
+
+  // Counteroffer modal submissions.
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith('trade:counter_modal:')) {
+      await handleTradeModal(interaction).catch((err) => {
+        logger.error('Trade modal handler failed', err);
       });
     }
     return;

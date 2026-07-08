@@ -12,10 +12,7 @@ const addLeague: BotCommand = {
     .setName('add_league')
     .setDescription('Link a Sleeper league to this server (server owner only).')
     .addStringOption((option) =>
-      option
-        .setName('league_id')
-        .setDescription('The Sleeper league ID')
-        .setRequired(true),
+      option.setName('league_id').setDescription('The Sleeper league ID').setRequired(true),
     )
     .addStringOption((option) =>
       option

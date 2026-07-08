@@ -70,8 +70,6 @@ export async function getWeekMatchups(leagueId: string, week: number): Promise<M
     }
   }
 
-  const pairings = [...grouped.values()].sort(
-    (a, b) => (a.matchupId ?? 0) - (b.matchupId ?? 0),
-  );
+  const pairings = [...grouped.values()].sort((a, b) => (a.matchupId ?? 0) - (b.matchupId ?? 0));
   return [...pairings, ...unpaired];
 }
