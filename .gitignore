@@ -6,6 +6,8 @@ dist/
 
 # Environment variables (never commit real secrets)
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 
