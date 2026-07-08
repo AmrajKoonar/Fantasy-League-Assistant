@@ -19,6 +19,43 @@ export async function getLinkedUser(discordUserId: string): Promise<LinkedUserRo
   return data as LinkedUserRow | null;
 }
 
+/** Returns the linked account for a Sleeper user ID, or null. */
+export async function getLinkedUserBySleeperId(
+  sleeperUserId: string,
+): Promise<LinkedUserRow | null> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('sleeper_user_id', sleeperUserId)
+    .maybeSingle();
+
+  if (error) {
+    logger.error(`Failed to fetch linked user by sleeper id ${sleeperUserId}: ${error.message}`);
+    throw new Error(`Database error while fetching linked user: ${error.message}`);
+  }
+  return data as LinkedUserRow | null;
+}
+
+/**
+ * Batch lookup of linked accounts by Sleeper user ID. Used by reminders
+ * to map league members to their Discord accounts in one query.
+ */
+export async function getLinkedUsersBySleeperIds(
+  sleeperUserIds: string[],
+): Promise<LinkedUserRow[]> {
+  if (sleeperUserIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .in('sleeper_user_id', sleeperUserIds);
+
+  if (error) {
+    logger.error(`Failed to batch fetch linked users: ${error.message}`);
+    throw new Error(`Database error while fetching linked users: ${error.message}`);
+  }
+  return (data ?? []) as LinkedUserRow[];
+}
+
 /**
  * Creates or updates the Discord -> Sleeper link for a user.
  * Users link once globally; re-linking overwrites the previous mapping.

@@ -5,9 +5,7 @@ import { Messages, UserFacingError } from '../utils/errors';
 import type { BotCommand } from '../types/commands';
 
 const me: BotCommand = {
-  data: new SlashCommandBuilder()
-    .setName('me')
-    .setDescription('Show your linked Sleeper account.'),
+  data: new SlashCommandBuilder().setName('me').setDescription('Show your linked Sleeper account.'),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });

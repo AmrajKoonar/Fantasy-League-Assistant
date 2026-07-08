@@ -6,6 +6,7 @@ const Colors = {
   success: 0x2ecc71,
   error: 0xe74c3c,
   info: 0x3498db,
+  warning: 0xf1c40f,
 } as const;
 
 function baseEmbed(color: number, title: string, description?: string): EmbedBuilder {
@@ -28,4 +29,8 @@ export function errorEmbed(title: string, description?: string): EmbedBuilder {
 
 export function infoEmbed(title: string, description?: string): EmbedBuilder {
   return baseEmbed(Colors.info, title, description);
+}
+
+export function warningEmbed(title: string, description?: string): EmbedBuilder {
+  return baseEmbed(Colors.warning, title, description);
 }

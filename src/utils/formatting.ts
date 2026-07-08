@@ -13,6 +13,16 @@ export function normalizeSearch(query: string): string {
   return query.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/** Alias of {@link normalizeNickname} for league-nickname specific call sites. */
+export function normalizeLeagueNickname(nickname: string): string {
+  return normalizeNickname(nickname);
+}
+
+/** Alias of {@link normalizeSearch} for player-name specific call sites. */
+export function normalizePlayerName(name: string): string {
+  return normalizeSearch(name);
+}
+
 /** "12-2" or "12-2-1" when there are ties. */
 export function formatRecord(wins: number, losses: number, ties: number): string {
   return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
@@ -56,4 +66,48 @@ export function truncate(text: string, maxLength: number): string {
 /** Formats a millisecond epoch as a Discord relative timestamp (e.g. "2 hours ago"). */
 export function discordRelativeTime(epochMs: number): string {
   return `<t:${Math.floor(epochMs / 1000)}:R>`;
+}
+
+/**
+ * Formats a millisecond epoch as a Discord timestamp. Style follows
+ * Discord's timestamp styles (f = short date/time, R = relative, etc).
+ */
+export function formatTimestamp(epochMs: number, style: 'f' | 'F' | 'R' | 't' | 'D' = 'f'): string {
+  return `<t:${Math.floor(epochMs / 1000)}:${style}>`;
+}
+
+/** A safe user mention. Never produces @everyone/@here. */
+export function safeMentionUser(discordUserId: string): string {
+  return `<@${discordUserId}>`;
+}
+
+/**
+ * Splits long text into chunks that each fit within a Discord limit,
+ * breaking on newlines where possible so lines are never split.
+ */
+export function chunkDiscordMessage(text: string, maxLength = 2000): string[] {
+  if (text.length <= maxLength) return [text];
+  const chunks: string[] = [];
+  let current = '';
+  for (const line of text.split('\n')) {
+    // A single line longer than the limit is hard-split as a fallback.
+    if (line.length > maxLength) {
+      if (current) {
+        chunks.push(current);
+        current = '';
+      }
+      for (let i = 0; i < line.length; i += maxLength) {
+        chunks.push(line.slice(i, i + maxLength));
+      }
+      continue;
+    }
+    if (current.length + line.length + 1 > maxLength) {
+      chunks.push(current);
+      current = line;
+    } else {
+      current = current ? `${current}\n${line}` : line;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }

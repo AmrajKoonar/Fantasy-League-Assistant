@@ -10,10 +10,7 @@ const linkSleeper: BotCommand = {
     .setName('link_sleeper')
     .setDescription('Link your Discord account to your Sleeper account.')
     .addStringOption((option) =>
-      option
-        .setName('username')
-        .setDescription('Your Sleeper username')
-        .setRequired(true),
+      option.setName('username').setDescription('Your Sleeper username').setRequired(true),
     ),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {

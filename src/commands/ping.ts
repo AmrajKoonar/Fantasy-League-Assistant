@@ -19,9 +19,7 @@ const ping: BotCommand = {
       websocketPing >= 0 ? `WebSocket: **${websocketPing}ms**` : null,
     ].filter(Boolean);
     await interaction.editReply({
-      embeds: [
-        infoEmbed('Pong!', ['Fantasy League Assistant is online.', ...parts].join('\n')),
-      ],
+      embeds: [infoEmbed('Pong!', ['Fantasy League Assistant is online.', ...parts].join('\n'))],
     });
   },
 };

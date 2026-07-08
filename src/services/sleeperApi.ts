@@ -122,9 +122,7 @@ export async function getPlayers(): Promise<SleeperPlayersMap | null> {
   return sleeperGet<SleeperPlayersMap>('/players/nfl');
 }
 
-export async function getWinnersBracket(
-  leagueId: string,
-): Promise<SleeperBracketMatchup[] | null> {
+export async function getWinnersBracket(leagueId: string): Promise<SleeperBracketMatchup[] | null> {
   return cache.getOrSet(`winnersBracket:${leagueId}`, CacheTtl.bracket, () =>
     sleeperGet<SleeperBracketMatchup[]>(`/league/${encodeURIComponent(leagueId)}/winners_bracket`),
   );
