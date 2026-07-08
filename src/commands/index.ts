@@ -21,11 +21,18 @@ import roster from './roster';
 import transactions from './transactions';
 import trending from './trending';
 import player from './player';
+import help from './help';
+import playoffBracket from './playoffBracket';
+import draft from './draft';
+import tradedPicks from './tradedPicks';
+import myLeagues from './myLeagues';
 
 export const commands: BotCommand[] = [
   ping,
+  help,
   linkSleeper,
   me,
+  myLeagues,
   addLeague,
   removeLeague,
   setDefaultLeague,
@@ -33,8 +40,11 @@ export const commands: BotCommand[] = [
   leagueInfo,
   standings,
   matchups,
+  playoffBracket,
   roster,
   transactions,
+  tradedPicks,
+  draft,
   trending,
   player,
 ];

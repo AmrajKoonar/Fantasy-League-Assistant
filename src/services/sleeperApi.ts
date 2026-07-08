@@ -10,12 +10,16 @@ import { logger } from '../utils/logger';
 import * as cache from './sleeperCache';
 import { CacheTtl } from './sleeperCache';
 import type {
+  SleeperBracketMatchup,
+  SleeperDraft,
+  SleeperDraftPick,
   SleeperLeague,
   SleeperLeagueUser,
   SleeperMatchup,
   SleeperNflState,
   SleeperPlayersMap,
   SleeperRoster,
+  SleeperTradedPick,
   SleeperTransaction,
   SleeperTrendingPlayer,
   SleeperUser,
@@ -59,8 +63,10 @@ export async function getUserLeagues(
   userId: string,
   season: string,
 ): Promise<SleeperLeague[] | null> {
-  return sleeperGet<SleeperLeague[]>(
-    `/user/${encodeURIComponent(userId)}/leagues/nfl/${encodeURIComponent(season)}`,
+  return cache.getOrSet(`userLeagues:${userId}:${season}`, CacheTtl.userLeagues, () =>
+    sleeperGet<SleeperLeague[]>(
+      `/user/${encodeURIComponent(userId)}/leagues/nfl/${encodeURIComponent(season)}`,
+    ),
   );
 }
 
@@ -114,6 +120,44 @@ export async function getTransactions(
  */
 export async function getPlayers(): Promise<SleeperPlayersMap | null> {
   return sleeperGet<SleeperPlayersMap>('/players/nfl');
+}
+
+export async function getWinnersBracket(
+  leagueId: string,
+): Promise<SleeperBracketMatchup[] | null> {
+  return cache.getOrSet(`winnersBracket:${leagueId}`, CacheTtl.bracket, () =>
+    sleeperGet<SleeperBracketMatchup[]>(`/league/${encodeURIComponent(leagueId)}/winners_bracket`),
+  );
+}
+
+export async function getLosersBracket(leagueId: string): Promise<SleeperBracketMatchup[] | null> {
+  return cache.getOrSet(`losersBracket:${leagueId}`, CacheTtl.bracket, () =>
+    sleeperGet<SleeperBracketMatchup[]>(`/league/${encodeURIComponent(leagueId)}/losers_bracket`),
+  );
+}
+
+export async function getLeagueDrafts(leagueId: string): Promise<SleeperDraft[] | null> {
+  return cache.getOrSet(`leagueDrafts:${leagueId}`, CacheTtl.drafts, () =>
+    sleeperGet<SleeperDraft[]>(`/league/${encodeURIComponent(leagueId)}/drafts`),
+  );
+}
+
+export async function getDraft(draftId: string): Promise<SleeperDraft | null> {
+  return cache.getOrSet(`draft:${draftId}`, CacheTtl.drafts, () =>
+    sleeperGet<SleeperDraft>(`/draft/${encodeURIComponent(draftId)}`),
+  );
+}
+
+export async function getDraftPicks(draftId: string): Promise<SleeperDraftPick[] | null> {
+  return cache.getOrSet(`draftPicks:${draftId}`, CacheTtl.drafts, () =>
+    sleeperGet<SleeperDraftPick[]>(`/draft/${encodeURIComponent(draftId)}/picks`),
+  );
+}
+
+export async function getTradedPicks(leagueId: string): Promise<SleeperTradedPick[] | null> {
+  return cache.getOrSet(`tradedPicks:${leagueId}`, CacheTtl.tradedPicks, () =>
+    sleeperGet<SleeperTradedPick[]>(`/league/${encodeURIComponent(leagueId)}/traded_picks`),
+  );
 }
 
 export async function getTrendingPlayers(

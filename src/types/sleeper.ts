@@ -125,3 +125,70 @@ export interface SleeperTrendingPlayer {
 }
 
 export type TrendingType = 'add' | 'drop';
+
+/**
+ * One matchup in a playoff bracket (winners_bracket / losers_bracket).
+ * r = round, m = match number, t1/t2 = roster IDs (or a "from" reference),
+ * w/l = winning/losing roster IDs once decided, p = placement match (e.g. 1 = championship).
+ */
+export interface SleeperBracketMatchup {
+  r: number;
+  m: number;
+  t1: number | null;
+  t2: number | null;
+  w: number | null;
+  l: number | null;
+  t1_from?: { w?: number; l?: number } | null;
+  t2_from?: { w?: number; l?: number } | null;
+  p?: number;
+}
+
+export interface SleeperDraftSettings {
+  rounds?: number;
+  teams?: number;
+  pick_timer?: number;
+  [key: string]: number | undefined;
+}
+
+export interface SleeperDraft {
+  draft_id: string;
+  league_id?: string;
+  status: string;
+  type?: string;
+  season?: string;
+  start_time?: number | null;
+  settings?: SleeperDraftSettings;
+  draft_order?: Record<string, number> | null;
+  metadata?: {
+    name?: string;
+    scoring_type?: string;
+    [key: string]: unknown;
+  };
+}
+
+export interface SleeperDraftPick {
+  player_id: string;
+  picked_by: string | null;
+  roster_id: number | null;
+  round: number;
+  draft_slot: number;
+  pick_no: number;
+  is_keeper?: boolean | null;
+  metadata?: {
+    first_name?: string;
+    last_name?: string;
+    position?: string;
+    team?: string;
+    [key: string]: unknown;
+  };
+}
+
+export interface SleeperTradedPick {
+  season: string;
+  round: number;
+  /** Original owner of the pick. */
+  roster_id: number;
+  previous_owner_id: number;
+  /** Current owner of the pick. */
+  owner_id: number;
+}

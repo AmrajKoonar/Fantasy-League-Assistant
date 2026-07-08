@@ -52,6 +52,17 @@ export async function buildRosterView(
   };
 }
 
+/** Maps every roster_id in a league to a display-ready team name. */
+export async function getTeamNamesByRosterId(leagueId: string): Promise<Map<number, string>> {
+  const [rosters, users] = await Promise.all([
+    sleeperApi.getLeagueRosters(leagueId),
+    sleeperApi.getLeagueUsers(leagueId),
+  ]);
+  if (!rosters || !users) throw new UserFacingError(Messages.genericFailure);
+  const usersById = new Map<string, SleeperLeagueUser>(users.map((u) => [u.user_id, u]));
+  return new Map(rosters.map((r) => [r.roster_id, teamNameForRoster(r, usersById)]));
+}
+
 /** Finds the roster owned (or co-owned) by a Sleeper user in a league, or null. */
 export async function findRosterForSleeperUser(
   leagueId: string,

@@ -21,6 +21,10 @@ export const CacheTtl = {
   nflState: 60 * 1000,
   trending: 5 * 60 * 1000,
   players: 24 * 60 * 60 * 1000,
+  bracket: 10 * 60 * 1000,
+  drafts: 10 * 60 * 1000,
+  tradedPicks: 10 * 60 * 1000,
+  userLeagues: 5 * 60 * 1000,
 } as const;
 
 export function get<T>(key: string): T | undefined {
