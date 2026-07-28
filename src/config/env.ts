@@ -3,7 +3,7 @@ import 'dotenv/config';
 export interface AppConfig {
   discordToken: string;
   discordClientId: string;
-  discordGuildId: string | undefined;
+  discordGuildId: string;
   supabaseUrl: string;
   supabaseServiceRoleKey: string;
   nodeEnv: string;
@@ -12,8 +12,10 @@ export interface AppConfig {
 const REQUIRED_VARS = [
   'DISCORD_TOKEN',
   'DISCORD_CLIENT_ID',
+  'DISCORD_GUILD_ID',
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'NODE_ENV',
 ] as const;
 
 /**
@@ -38,13 +40,21 @@ export function loadConfig(): AppConfig {
     process.exit(1);
   }
 
+  const supabaseUrl = (process.env.SUPABASE_URL as string).replace(/\/+$/, '');
+  if (supabaseUrl.endsWith('/rest/v1')) {
+    console.error(
+      'SUPABASE_URL must be the base project URL (for example, https://your-project-ref.supabase.co), without /rest/v1.',
+    );
+    process.exit(1);
+  }
+
   return {
     discordToken: process.env.DISCORD_TOKEN as string,
     discordClientId: process.env.DISCORD_CLIENT_ID as string,
-    discordGuildId: process.env.DISCORD_GUILD_ID?.trim() || undefined,
-    supabaseUrl: process.env.SUPABASE_URL as string,
+    discordGuildId: process.env.DISCORD_GUILD_ID as string,
+    supabaseUrl,
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY as string,
-    nodeEnv: process.env.NODE_ENV ?? 'development',
+    nodeEnv: process.env.NODE_ENV as string,
   };
 }
 

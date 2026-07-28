@@ -125,33 +125,60 @@ npm run build
 npm start
 ```
 
+## Deployment on Render
+
+Deploy this bot as a **Render Background Worker**, not a Web Service. The bot maintains a long-running Discord gateway connection and does not receive HTTP traffic, so it does not need Express or an HTTP port. Render runs `npm run build` followed by `npm start`, which keeps the bot online without a local VS Code terminal.
+
+> Render's current documentation says its free instance type is not available for Background Workers. The included [`render.yaml`](render.yaml) uses the `starter` plan. Check current pricing before creating the service.
+
+Quick deployment:
+
+1. Commit the changes, push the repository to GitHub, open a pull request into `main`, and merge after the build passes.
+2. In the [Render Dashboard](https://dashboard.render.com/), create a **Background Worker** and connect the GitHub repository, or create a Blueprint from `render.yaml`.
+3. Use:
+   - Name: `fantasy-league-assistant`
+   - Runtime: Node
+   - Build command: `npm ci && npm run build`
+   - Start command: `npm start`
+4. Add `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `NODE_ENV=production` as Render environment variables.
+5. Set `SUPABASE_URL` to `https://your-project-ref.supabase.co` — never append `/rest/v1/`.
+6. Deploy commands locally with `npm run deploy:commands` if command names or options changed.
+7. Deploy the worker and confirm the Render logs show the startup message and `Logged in as <bot tag>`.
+8. Test `/ping` in Discord, then stop any local `npm run dev` terminal.
+
+Never run the local bot and Render worker at the same time with the same Discord token. Two copies can cause duplicate replies, expired interactions, and confusing logs.
+
+Render can auto-deploy whenever changes are pushed or merged into its connected branch. Confirm which branch the service watches: production normally watches `main`, while a temporary test deployment can watch `FB.render.deploy.v1`.
+
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the complete dashboard/Blueprint checklist, command deployment guidance, log verification, security notes, plan limitations, graceful shutdown behavior, and troubleshooting for missing commands, duplicate replies, crashes, and Supabase failures.
+
 ## Command list
 
 Run `/help` in Discord for the same overview, grouped and searchable. Options in `[brackets]` are optional; most league commands fall back to the server default league.
 
 ### General
 
-| Command         | Description                                | Visibility |
-| --------------- | ------------------------------------------ | ---------- |
-| `/ping`         | Health check with latency                  | Public     |
-| `/help`         | Grouped overview of every command          | Ephemeral  |
-| `/current_week` | Current NFL season, week, and season type  | Public     |
+| Command         | Description                               | Visibility |
+| --------------- | ----------------------------------------- | ---------- |
+| `/ping`         | Health check with latency                 | Public     |
+| `/help`         | Grouped overview of every command         | Ephemeral  |
+| `/current_week` | Current NFL season, week, and season type | Public     |
 
 ### Account
 
-| Command                         | Description                                        | Visibility |
-| ------------------------------- | -------------------------------------------------- | ---------- |
-| `/link_sleeper username:<name>` | Link your Discord account to your Sleeper account  | Ephemeral  |
-| `/me`                           | Show your linked Sleeper account                   | Ephemeral  |
-| `/my_leagues`                   | Your Sleeper leagues and which are linked here      | Ephemeral  |
+| Command                         | Description                                       | Visibility |
+| ------------------------------- | ------------------------------------------------- | ---------- |
+| `/link_sleeper username:<name>` | Link your Discord account to your Sleeper account | Ephemeral  |
+| `/me`                           | Show your linked Sleeper account                  | Ephemeral  |
+| `/my_leagues`                   | Your Sleeper leagues and which are linked here    | Ephemeral  |
 
 ### League management (server owner only)
 
-| Command                                      | Description                            | Visibility |
-| -------------------------------------------- | -------------------------------------- | ---------- |
-| `/add_league league_id:<id> nickname:<name>` | Link a Sleeper league to this server   | Ephemeral  |
-| `/remove_league nickname:<name>`             | Remove a linked league                 | Ephemeral  |
-| `/set_default_league nickname:<name>`        | Set the server's default league        | Ephemeral  |
+| Command                                      | Description                          | Visibility |
+| -------------------------------------------- | ------------------------------------ | ---------- |
+| `/add_league league_id:<id> nickname:<name>` | Link a Sleeper league to this server | Ephemeral  |
+| `/remove_league nickname:<name>`             | Remove a linked league               | Ephemeral  |
+| `/set_default_league nickname:<name>`        | Set the server's default league      | Ephemeral  |
 
 ### League info
 
@@ -168,69 +195,69 @@ Run `/help` in Discord for the same overview, grouped and searchable. Options in
 
 ### Matchups
 
-| Command                                | Description                     | Visibility |
-| -------------------------------------- | ------------------------------- | ---------- |
-| `/matchups [league] [week]`            | Weekly matchups and scores      | Public     |
-| `/matchup_detail [league] [week] [user]` | One manager's matchup for a week | Public   |
-| `/weekly_recap [league] [week]`        | Fun recap of a week             | Public     |
-| `/biggest_blowout [league] [week]`     | Largest win margin of a week    | Public     |
-| `/closest_matchup [league] [week]`     | Closest matchup of a week       | Public     |
+| Command                                  | Description                      | Visibility |
+| ---------------------------------------- | -------------------------------- | ---------- |
+| `/matchups [league] [week]`              | Weekly matchups and scores       | Public     |
+| `/matchup_detail [league] [week] [user]` | One manager's matchup for a week | Public     |
+| `/weekly_recap [league] [week]`          | Fun recap of a week              | Public     |
+| `/biggest_blowout [league] [week]`       | Largest win margin of a week     | Public     |
+| `/closest_matchup [league] [week]`       | Closest matchup of a week        | Public     |
 
 ### Teams
 
-| Command                   | Description                          | Visibility |
-| ------------------------- | ------------------------------------ | ---------- |
-| `/roster [league] [user]` | Starters, bench, IR, taxi            | Public     |
-| `/team [league] [user]`   | Team profile (no full roster)        | Public     |
-| `/record [league] [user]` | Record and point totals              | Public     |
-| `/moves [league]`         | Total roster moves by team           | Public     |
-| `/faab [league]`          | FAAB (waiver budget) usage by team   | Public     |
-| `/waiver_order [league]`  | Waiver priority order                | Public     |
+| Command                   | Description                        | Visibility |
+| ------------------------- | ---------------------------------- | ---------- |
+| `/roster [league] [user]` | Starters, bench, IR, taxi          | Public     |
+| `/team [league] [user]`   | Team profile (no full roster)      | Public     |
+| `/record [league] [user]` | Record and point totals            | Public     |
+| `/moves [league]`         | Total roster moves by team         | Public     |
+| `/faab [league]`          | FAAB (waiver budget) usage by team | Public     |
+| `/waiver_order [league]`  | Waiver priority order              | Public     |
 
 ### Draft
 
-| Command                            | Description                   | Visibility |
-| ---------------------------------- | ----------------------------- | ---------- |
-| `/draft [league] [round]`          | Draft info and picks by round | Public     |
-| `/draft_order [league]`            | Draft pick order              | Public     |
-| `/draft_results [league] [round]`  | Draft picks by round          | Public     |
-| `/traded_picks [league]`           | Traded draft picks            | Public     |
-| `/playoff_bracket [league] [bracket]` | Winners/losers bracket     | Public     |
+| Command                               | Description                   | Visibility |
+| ------------------------------------- | ----------------------------- | ---------- |
+| `/draft [league] [round]`             | Draft info and picks by round | Public     |
+| `/draft_order [league]`               | Draft pick order              | Public     |
+| `/draft_results [league] [round]`     | Draft picks by round          | Public     |
+| `/traded_picks [league]`              | Traded draft picks            | Public     |
+| `/playoff_bracket [league] [bracket]` | Winners/losers bracket        | Public     |
 
 ### Transactions & trades
 
-| Command                                                    | Description                                | Visibility |
-| --------------------------------------------------------- | ------------------------------------------ | ---------- |
-| `/transactions [league] [week]`                           | Latest trades/waivers/FA moves             | Public     |
-| `/trade_history [league] [week]`                          | Completed Sleeper trades                   | Public     |
-| `/waiver_history [league] [week]`                         | Waiver and free-agent activity             | Public     |
-| `/trade user:<@user> send:<...> receive:<...> [league] [note]` | **Discord-only** trade proposal      | Public offer / ephemeral errors |
-| `/counteroffer trade_id:<id> [send] [receive] [note]`     | Counter an existing trade offer            | Public offer / ephemeral errors |
-| `/trade_history_local [league] [user]`                    | Discord-only trade offers made via the bot | Public     |
+| Command                                                        | Description                                | Visibility                      |
+| -------------------------------------------------------------- | ------------------------------------------ | ------------------------------- |
+| `/transactions [league] [week]`                                | Latest trades/waivers/FA moves             | Public                          |
+| `/trade_history [league] [week]`                               | Completed Sleeper trades                   | Public                          |
+| `/waiver_history [league] [week]`                              | Waiver and free-agent activity             | Public                          |
+| `/trade user:<@user> send:<...> receive:<...> [league] [note]` | **Discord-only** trade proposal            | Public offer / ephemeral errors |
+| `/counteroffer trade_id:<id> [send] [receive] [note]`          | Counter an existing trade offer            | Public offer / ephemeral errors |
+| `/trade_history_local [league] [user]`                         | Discord-only trade offers made via the bot | Public                          |
 
 ### Players
 
-| Command                                      | Description                       | Visibility |
-| -------------------------------------------- | --------------------------------- | ---------- |
-| `/player name:<name>`                        | Search the Sleeper player database | Public    |
-| `/trending type:<add\|drop> [hours] [limit]` | Trending adds/drops across Sleeper | Public    |
+| Command                                      | Description                        | Visibility |
+| -------------------------------------------- | ---------------------------------- | ---------- |
+| `/player name:<name>`                        | Search the Sleeper player database | Public     |
+| `/trending type:<add\|drop> [hours] [limit]` | Trending adds/drops across Sleeper | Public     |
 
 ### Reminders (server owner only)
 
-| Command                                      | Description                                       | Visibility |
-| -------------------------------------------- | ------------------------------------------------- | ---------- |
-| `/draftreminder [league] [minutes] [message]` | Ping linked members about the draft (manual)     | Public     |
-| `/waiversreminder [league] [message]`         | Ping linked members to submit waivers (manual)   | Public     |
+| Command                                       | Description                                    | Visibility |
+| --------------------------------------------- | ---------------------------------------------- | ---------- |
+| `/draftreminder [league] [minutes] [message]` | Ping linked members about the draft (manual)   | Public     |
+| `/waiversreminder [league] [message]`         | Ping linked members to submit waivers (manual) | Public     |
 
 ### Fun
 
-| Command                       | Description                        | Visibility |
-| ----------------------------- | ---------------------------------- | ---------- |
-| `/luck_rating [league] [user]` | How lucky a team has been          | Public     |
-| `/panic_meter [league] [user]` | Playful panic level for a team     | Public     |
-| `/benchwarmer [league] [week]` | Highest bench score of a week      | Public     |
-| `/random_team [league]`        | Randomly pick a team               | Public     |
-| `/trash_talk [league] [user]`  | Light, harmless fantasy joke       | Public     |
+| Command                        | Description                    | Visibility |
+| ------------------------------ | ------------------------------ | ---------- |
+| `/luck_rating [league] [user]` | How lucky a team has been      | Public     |
+| `/panic_meter [league] [user]` | Playful panic level for a team | Public     |
+| `/benchwarmer [league] [week]` | Highest bench score of a week  | Public     |
+| `/random_team [league]`        | Randomly pick a team           | Public     |
+| `/trash_talk [league] [user]`  | Light, harmless fantasy joke   | Public     |
 
 Examples:
 
@@ -325,15 +352,15 @@ League-level commands that are not user-specific (`/league_info`, `/league_setti
 
 All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching:
 
-| Data                            | TTL        |
-| ------------------------------- | ---------- |
-| Players database (~5 MB)        | 24 hours   |
-| League users                    | 10 minutes |
-| Brackets, drafts, traded picks  | 10 minutes |
-| League info, trending, user leagues | 5 minutes |
-| Rosters, transactions           | 2 minutes  |
-| NFL state                       | 1 minute   |
-| Matchups                        | 30 seconds |
+| Data                                | TTL        |
+| ----------------------------------- | ---------- |
+| Players database (~5 MB)            | 24 hours   |
+| League users                        | 10 minutes |
+| Brackets, drafts, traded picks      | 10 minutes |
+| League info, trending, user leagues | 5 minutes  |
+| Rosters, transactions               | 2 minutes  |
+| NFL state                           | 1 minute   |
+| Matchups                            | 30 seconds |
 
 ## Sleeper API references
 

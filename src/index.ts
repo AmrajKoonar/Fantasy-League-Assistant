@@ -15,6 +15,7 @@ import { logger } from './utils/logger';
 import type { BotCommand } from './types/commands';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+let shutdownStarted = false;
 
 const commandMap = new Collection<string, BotCommand>();
 for (const command of commands) {
@@ -100,6 +101,28 @@ client.on(Events.InteractionCreate, async (interaction) => {
     );
   }
 });
+
+async function shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
+  if (shutdownStarted) return;
+  shutdownStarted = true;
+
+  logger.info(`Received ${signal}. Shutting down Discord client...`);
+  client.destroy();
+  logger.info('Discord client shut down cleanly.');
+  process.exit(0);
+}
+
+process.once('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+
+process.once('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});
+
+logger.info('Starting Fantasy League Assistant...');
+logger.info(`NODE_ENV: ${config.nodeEnv}`);
+logger.info('Registered command handler.');
 
 client.login(config.discordToken).catch((err) => {
   logger.error('Failed to log in to Discord. Check DISCORD_TOKEN in your .env file.', err);
