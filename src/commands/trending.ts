@@ -3,7 +3,7 @@ import * as sleeperApi from '../services/sleeperApi';
 import * as playerCache from '../services/playerCache';
 import { infoEmbed } from '../utils/embeds';
 import { Messages, UserFacingError } from '../utils/errors';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import type { TrendingType } from '../types/sleeper';
 import type { BotCommand } from '../types/commands';
 
@@ -51,19 +51,29 @@ const trending: BotCommand = {
 
     const players = await playerCache.getAllPlayers();
 
-    const lines = trendingPlayers.map((entry, index) => {
+    const rows = trendingPlayers.map((entry, index) => {
       const player = players[entry.player_id];
       const name = playerCache.formatPlayerName(player, entry.player_id);
       const position = player?.position ?? player?.fantasy_positions?.[0] ?? '?';
       const team = player?.team ?? 'FA';
       const count = entry.count?.toLocaleString() ?? '—';
-      return `**${index + 1}.** ${name} (${position} - ${team}) — ${count} ${type === 'add' ? 'adds' : 'drops'}`;
+      return [index + 1, name, position, team, count];
     });
+    const table = formatCodeTable(
+      [
+        { header: '#', align: 'right' },
+        { header: 'Player', maxWidth: 28 },
+        { header: 'Pos' },
+        { header: 'Team' },
+        { header: type === 'add' ? 'Adds' : 'Drops', align: 'right' },
+      ],
+      rows,
+    );
 
     const verb = type === 'add' ? 'added' : 'dropped';
     const embed = infoEmbed(
       `Trending ${verb} players (last ${hours}h)`,
-      lines.length > 0 ? truncate(lines.join('\n'), 4096) : 'No trending players found.',
+      rows.length > 0 ? table : 'No trending players found.',
     );
 
     await interaction.editReply({ embeds: [embed] });

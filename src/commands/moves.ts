@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getMoves } from '../services/managerService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
@@ -32,14 +32,24 @@ const moves: BotCommand = {
 
     const entries = await getMoves(guildLeague.league_id);
 
-    const lines = entries.map((entry, index) => {
-      const medal = ['🥇', '🥈', '🥉'][index] ?? `**${index + 1}.**`;
-      return `${medal} ${entry.teamName} — ${entry.managerName}: **${entry.totalMoves}** moves`;
-    });
+    const table = formatCodeTable(
+      [
+        { header: '#', align: 'right' },
+        { header: 'Team', maxWidth: 26 },
+        { header: 'Manager', maxWidth: 22 },
+        { header: 'Moves', align: 'right' },
+      ],
+      entries.map((entry, index) => [
+        index + 1,
+        entry.teamName,
+        entry.managerName,
+        entry.totalMoves,
+      ]),
+    );
 
     const embed = infoEmbed(
       `Most active managers — ${guildLeague.league_name ?? guildLeague.league_nickname}`,
-      truncate(lines.join('\n'), 4096),
+      table,
     );
 
     await interaction.editReply({ embeds: [embed] });

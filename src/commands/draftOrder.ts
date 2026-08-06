@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getDraftOrder } from '../services/draftService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
@@ -64,10 +64,15 @@ const draftOrder: BotCommand = {
       return;
     }
 
-    const lines = view.order.map(
-      (entry) => `**${entry.slot}.** ${entry.teamName} — ${entry.managerName}`,
+    const table = formatCodeTable(
+      [
+        { header: 'Slot', align: 'right' },
+        { header: 'Team', maxWidth: 28 },
+        { header: 'Manager', maxWidth: 24 },
+      ],
+      view.order.map((entry) => [entry.slot, entry.teamName, entry.managerName]),
     );
-    const embed = infoEmbed(title, truncate(lines.join('\n'), 4096)).setFooter({
+    const embed = infoEmbed(title, table).setFooter({
       text: `Draft status: ${view.draft.status}`,
     });
 

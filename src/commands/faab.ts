@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getFaab } from '../services/managerService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
@@ -32,10 +32,20 @@ const faab: BotCommand = {
 
     const result = await getFaab(guildLeague.league_id);
 
-    const lines = result.entries.map((entry, index) => {
-      const remaining = entry.remaining !== null ? ` | Remaining: **$${entry.remaining}**` : '';
-      return `**${index + 1}.** ${entry.teamName} — Used: $${entry.used}${remaining}`;
-    });
+    const table = formatCodeTable(
+      [
+        { header: '#', align: 'right' },
+        { header: 'Team', maxWidth: 28 },
+        { header: 'Used', align: 'right' },
+        { header: 'Remaining', align: 'right' },
+      ],
+      result.entries.map((entry, index) => [
+        index + 1,
+        entry.teamName,
+        `$${entry.used}`,
+        entry.remaining !== null ? `$${entry.remaining}` : '—',
+      ]),
+    );
 
     const budgetNote =
       result.totalBudget !== null
@@ -47,7 +57,7 @@ const faab: BotCommand = {
 
     const embed = infoEmbed(
       `FAAB usage — ${guildLeague.league_name ?? guildLeague.league_nickname}`,
-      `${faabNote}\n\n${truncate(lines.join('\n'), 3900)}`,
+      `${faabNote}\n\n${table}`,
     );
 
     await interaction.editReply({ embeds: [embed] });
