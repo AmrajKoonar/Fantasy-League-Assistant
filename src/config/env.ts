@@ -7,6 +7,11 @@ export interface AppConfig {
   supabaseUrl: string;
   supabaseServiceRoleKey: string;
   nodeEnv: string;
+  fantasyProsApiKey?: string;
+  fantasyProsBaseUrl: string;
+  fantasyProsDefaultRankingType: string;
+  openaiApiKey?: string;
+  openaiModel?: string;
 }
 
 const REQUIRED_VARS = [
@@ -55,6 +60,14 @@ export function loadConfig(): AppConfig {
     supabaseUrl,
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY as string,
     nodeEnv: process.env.NODE_ENV as string,
+    fantasyProsApiKey: process.env.FANTASYPROS_API_KEY?.trim() || undefined,
+    fantasyProsBaseUrl:
+      process.env.FANTASYPROS_BASE_URL?.trim().replace(/\/+$/, '') ||
+      'https://api.fantasypros.com/public/v2/json',
+    fantasyProsDefaultRankingType:
+      process.env.FANTASYPROS_DEFAULT_RANKING_TYPE?.trim().toUpperCase() || 'DRAFT',
+    openaiApiKey: process.env.OPENAI_API_KEY?.trim() || undefined,
+    openaiModel: process.env.OPENAI_MODEL?.trim() || undefined,
   };
 }
 

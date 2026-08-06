@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction } from 'discord.js';
+import { PermissionFlagsBits, type ChatInputCommandInteraction } from 'discord.js';
 import { Messages, UserFacingError } from './errors';
 
 /**
@@ -20,4 +20,13 @@ export function requireGuild(interaction: ChatInputCommandInteraction): string {
     throw new UserFacingError(Messages.guildOnly, 'Server only');
   }
   return interaction.guildId;
+}
+
+/** True for the guild owner or a member with Discord's Administrator permission. */
+export function isServerAdminOrOwner(interaction: ChatInputCommandInteraction): boolean {
+  if (!interaction.guild) return false;
+  return (
+    interaction.user.id === interaction.guild.ownerId ||
+    interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) === true
+  );
 }

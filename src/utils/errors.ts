@@ -27,6 +27,16 @@ export class SleeperApiError extends Error {
   }
 }
 
+export class FantasyProsApiError extends Error {
+  public readonly status: number;
+
+  constructor(status: number, message = 'FantasyPros API request failed') {
+    super(message);
+    this.name = 'FantasyProsApiError';
+    this.status = status;
+  }
+}
+
 /** Common friendly messages reused across commands. */
 export const Messages = {
   notLinked:
@@ -34,7 +44,7 @@ export const Messages = {
   targetNotLinked: (username: string) =>
     `**${username}** has not linked a Sleeper account yet. They can run \`/link_sleeper username:<username>\`.`,
   noLeagues:
-    'This server does not have any linked Sleeper leagues yet. Ask the server owner to run `/add_league league_id:<league_id> nickname:<nickname>`.',
+    'This server does not have any linked leagues yet. Ask the server owner to add one with `/add_league`.',
   leagueNotFound: 'I could not find that league nickname in this server.',
   ownerOnly: 'Only the Discord server owner can manage linked leagues.',
   sleeperUserNotFound: 'Could not find that Sleeper user.',
