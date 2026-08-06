@@ -19,3 +19,13 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: FANTASYPROS_API_KEY
+        sync: false
+      - key: FANTASYPROS_BASE_URL
+        value: https://api.fantasypros.com/public/v2/json
+      - key: FANTASYPROS_DEFAULT_RANKING_TYPE
+        value: DRAFT
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false

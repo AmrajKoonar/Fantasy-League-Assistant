@@ -109,3 +109,22 @@ export interface InsertTradeOfferInput {
   note: string | null;
   parent_trade_offer_id: string | null;
 }
+
+export interface DraftGradeRow {
+  id: string;
+  guild_id: string;
+  league_id: string;
+  league_nickname: string;
+  league_name: string | null;
+  season: string | null;
+  generated_by_discord_user_id: string;
+  model_provider: string;
+  model_name: string;
+  ranking_source: string;
+  ranking_type: string | null;
+  input_hash: string;
+  result: import('./draftGrades').DraftGradesResult;
+  created_at: string;
+}
+
+export type InsertDraftGradeInput = Omit<DraftGradeRow, 'id' | 'created_at'>;

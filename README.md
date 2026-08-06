@@ -13,6 +13,7 @@ Built on the official, free, read-only [Sleeper API](https://docs.sleeper.com/) 
 - **League insights** — managers, waiver order, FAAB usage, detailed settings/scoring, bot-calculated power rankings, and fun league records.
 - **Weekly recaps** — highest/lowest scores, biggest blowout, closest matchup, benchwarmer of the week.
 - **Draft tools** — draft order, results by round, and traded picks.
+- **AI draft grades** — admin-generated league grades using Sleeper rosters, cached FantasyPros rankings, deterministic metrics, and validated OpenAI analysis.
 - **Discord-only trade offers** — propose, accept, decline, and counter trades with buttons and modals (never submitted to Sleeper).
 - **Manual reminders** — owner-only draft and waivers reminders that ping only linked members in the league.
 - **Trending players & player search** — powered by a locally cached copy of Sleeper's player database.
@@ -25,6 +26,7 @@ Built on the official, free, read-only [Sleeper API](https://docs.sleeper.com/) 
 - [TypeScript](https://www.typescriptlang.org/) (strict mode)
 - [discord.js v14](https://discordjs.guide/)
 - [Supabase Postgres](https://supabase.com/docs) via [`@supabase/supabase-js`](https://supabase.com/docs/reference/javascript/introduction)
+- OpenAI SDK with Zod-validated Structured Outputs
 - `dotenv`, `tsx` (dev runner), ESLint + Prettier
 
 ## Project structure
@@ -76,7 +78,7 @@ npm install
 ### 4. Create the Supabase project
 
 1. Create a new project at [supabase.com/dashboard](https://supabase.com/dashboard).
-2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the `linked_users`, `guild_leagues`, and `trade_offers` tables. Re-running it is safe (`create table if not exists`), so existing servers can apply the `trade_offers` addition the same way.
+2. Open **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates the `linked_users`, `guild_leagues`, `trade_offers`, and `draft_grades` tables. Re-running it is safe (`create table if not exists`), so existing servers can apply new tables and indexes the same way.
 3. In **Project Settings → API**, copy:
    - **Project URL** — this is `SUPABASE_URL`.
    - **`service_role` secret key** — this is `SUPABASE_SERVICE_ROLE_KEY`. This key bypasses row security; it must only ever live on the server running the bot.
@@ -96,6 +98,16 @@ DISCORD_GUILD_ID=your-server-id
 SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NODE_ENV=development
+```
+
+AI draft grades also use these optional-at-startup variables. Other commands continue to work without them, but `/create_draft_grades` requires them:
+
+```env
+FANTASYPROS_API_KEY=your_key_here
+FANTASYPROS_BASE_URL=https://api.fantasypros.com/public/v2/json
+FANTASYPROS_DEFAULT_RANKING_TYPE=DRAFT
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=your_model_here
 ```
 
 Never commit `.env`. The bot validates these on startup and exits with a clear message if any are missing.
@@ -140,7 +152,7 @@ Quick deployment:
    - Runtime: Node
    - Build command: `npm ci && npm run build`
    - Start command: `npm start`
-4. Add `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `NODE_ENV=production` as Render environment variables.
+4. Add `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `DISCORD_GUILD_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `NODE_ENV=production` as Render environment variables. If using AI draft grades, also add `FANTASYPROS_API_KEY`, `FANTASYPROS_BASE_URL`, `FANTASYPROS_DEFAULT_RANKING_TYPE`, `OPENAI_API_KEY`, and `OPENAI_MODEL`.
 5. Set `SUPABASE_URL` to `https://your-project-ref.supabase.co` — never append `/rest/v1/`.
 6. Deploy commands locally with `npm run deploy:commands` if command names or options changed.
 7. Deploy the worker and confirm the Render logs show the startup message and `Logged in as <bot tag>`.
@@ -216,13 +228,15 @@ Run `/help` in Discord for the same overview, grouped and searchable. Options in
 
 ### Draft
 
-| Command                               | Description                   | Visibility |
-| ------------------------------------- | ----------------------------- | ---------- |
-| `/draft [league] [round]`             | Draft info and picks by round | Public     |
-| `/draft_order [league]`               | Draft pick order              | Public     |
-| `/draft_results [league] [round]`     | Draft picks by round          | Public     |
-| `/traded_picks [league]`              | Traded draft picks            | Public     |
-| `/playoff_bracket [league] [bracket]` | Winners/losers bracket        | Public     |
+| Command                               | Description                                        | Visibility |
+| ------------------------------------- | -------------------------------------------------- | ---------- |
+| `/draft [league] [round]`             | Draft info and picks by round                      | Public     |
+| `/draft_order [league]`               | Draft pick order                                   | Public     |
+| `/draft_results [league] [round]`     | Draft picks by round                               | Public     |
+| `/create_draft_grades [league]`       | Generate all saved draft grades (admin/owner only) | Public     |
+| `/draft_grade [league] [user]`        | Show one saved team grade                          | Public     |
+| `/traded_picks [league]`              | Traded draft picks                                 | Public     |
+| `/playoff_bracket [league] [bracket]` | Winners/losers bracket                             | Public     |
 
 ### Transactions & trades
 
@@ -272,7 +286,86 @@ Examples:
 /draftreminder league:division1 minutes:15
 /trending type:add hours:48 limit:15
 /player name:jefferson
+/create_draft_grades league:division1
+/draft_grade league:division1 user:@Amraj
 ```
+
+## AI Draft Grades
+
+`/create_draft_grades` generates a grade for every team in a linked league. It combines current Sleeper rosters and league settings, cached FantasyPros consensus rankings, deterministic roster metrics, and validated AI analysis. Only a Discord server administrator or the server owner can generate grades, and a ten-minute per-league cooldown limits paid API usage.
+
+`/draft_grade` shows one user's latest saved grade. It reads Supabase only: it does not call OpenAI or FantasyPros and never regenerates league grades. Draft grade history is append-only, and the newest row is shown.
+
+Grades are normalized relative to the selected league so every result has exactly one `A+` and one `F`. The bottom grade is relative—not a claim that the roster is objectively bad. AI failures fall back to deterministic analysis, while still preserving the requested strengths, weaknesses, summary, grade, and score format.
+
+This feature is analysis only. The bot does not submit drafts, trades, waiver claims, roster changes, or lineup changes to Sleeper. Grades are for fun and league discussion and cannot be guaranteed to be perfect.
+
+Commands:
+
+- Admin/server owner: `/create_draft_grades league:<nickname optional>`
+- Everyone: `/draft_grade league:<nickname optional> user:<discord user optional>`
+
+Examples:
+
+```text
+/create_draft_grades league:division1
+/draft_grade league:division1
+/draft_grade league:division1 user:@Amraj
+```
+
+### FantasyPros setup
+
+1. Go to FantasyPros API documentation:
+   https://api.fantasypros.com/public/v2/docs
+2. Request or create API access if required by FantasyPros.
+3. Copy the FantasyPros API key.
+4. Add it to local `.env`:
+   `FANTASYPROS_API_KEY=your_key_here`
+5. Add it to Render environment variables if deployed:
+   `FANTASYPROS_API_KEY=your_key_here`
+6. Make sure `FANTASYPROS_BASE_URL` is:
+   `https://api.fantasypros.com/public/v2/json`
+7. Do not commit the key to GitHub.
+
+The integration requests detailed NFL consensus rankings with `position=ALL`, the league's detected `scoring` format, and `type=DRAFT`. If draft rankings are unavailable, it falls back to `type=ADP`. Rankings are cached in memory for 12 hours.
+
+### OpenAI setup
+
+1. Create or log into an OpenAI developer account.
+2. Create an API key from the OpenAI dashboard.
+3. Add billing/credits if required by OpenAI.
+4. Add the key to local `.env`:
+   `OPENAI_API_KEY=your_key_here`
+5. Pick a model and set:
+   `OPENAI_MODEL=your_model_here`
+6. Add both variables to Render environment variables if deployed.
+7. Do not commit the key to GitHub.
+
+The model response uses OpenAI Structured Outputs with a strict Zod schema. The bot validates that every roster appears exactly once, retries one invalid response, and then falls back to deterministic grades if necessary.
+
+### Discord setup after adding commands
+
+1. Run:
+   `npm run deploy:commands`
+2. Restart the bot locally or redeploy on Render.
+3. In Discord, test:
+   `/create_draft_grades league:division1`
+4. Then test:
+   `/draft_grade league:division1`
+
+### Render setup note
+
+If the bot is deployed on Render, add these new env vars in the Render dashboard:
+
+```text
+FANTASYPROS_API_KEY
+FANTASYPROS_BASE_URL
+FANTASYPROS_DEFAULT_RANKING_TYPE
+OPENAI_API_KEY
+OPENAI_MODEL
+```
+
+Then redeploy the worker. Never commit or log either API key.
 
 ## Discord-only trade offers
 
@@ -341,7 +434,7 @@ The same auto-detection powers `/team`, `/record`, `/matchup_detail`, `/luck_rat
 
 ## League selection for other commands
 
-League-level commands that are not user-specific (`/league_info`, `/league_settings`, `/scoring`, `/managers`, `/standings`, `/power_rankings`, `/league_records`, `/matchups`, `/weekly_recap`, `/biggest_blowout`, `/closest_matchup`, `/moves`, `/faab`, `/waiver_order`, `/draft*`, `/traded_picks`, `/playoff_bracket`, `/transactions`, `/trade_history`, `/waiver_history`, `/benchwarmer`, `/random_team`, reminders) resolve the league in this order:
+League-level commands that are not user-specific (`/league_info`, `/league_settings`, `/scoring`, `/managers`, `/standings`, `/power_rankings`, `/league_records`, `/matchups`, `/weekly_recap`, `/biggest_blowout`, `/closest_matchup`, `/moves`, `/faab`, `/waiver_order`, `/draft*`, `/create_draft_grades`, `/traded_picks`, `/playoff_bracket`, `/transactions`, `/trade_history`, `/waiver_history`, `/benchwarmer`, `/random_team`, reminders) resolve the league in this order:
 
 1. The `league` option, if provided.
 2. The server's default league.
@@ -355,6 +448,7 @@ All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching
 | Data                                | TTL        |
 | ----------------------------------- | ---------- |
 | Players database (~5 MB)            | 24 hours   |
+| FantasyPros draft/ADP rankings      | 12 hours   |
 | League users                        | 10 minutes |
 | Brackets, drafts, traded picks      | 10 minutes |
 | League info, trending, user leagues | 5 minutes  |
@@ -376,6 +470,7 @@ All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching
 - Team names come from Sleeper user metadata; teams without a custom name fall back to the owner's display name.
 - **Trade offers are Discord-only.** The bot never submits trades, waiver claims, or draft picks to Sleeper — the API is read-only. Complete agreed trades manually in Sleeper.
 - **Reminders are manual (V1).** There is no scheduler; an owner runs the reminder command when they want members pinged.
+- **AI draft grades are subjective and relative.** They use external rankings and AI-assisted explanations, are stored in Supabase, and are strictly for fun.
 - Power rankings, luck ratings, and panic meters are **bot-calculated for fun**, not official Sleeper data.
 - FAAB totals are read from league settings when present; if Sleeper doesn't expose a budget the bot shows "unknown" rather than guessing.
 - Benchwarmer scores require per-player points in the matchup payload; before a week is scored the command says so.
@@ -396,5 +491,6 @@ All Sleeper calls go through `src/services/sleeperApi.ts` with in-memory caching
 - `.env` is gitignored; only `.env.example` is committed.
 - The Supabase **service role key** stays server-side only and is never logged or sent to Discord.
 - The bot never asks for Sleeper passwords — the Sleeper API needs no authentication.
+- OpenAI and FantasyPros API keys remain in environment variables only; they are never stored in Supabase, logged, or sent to Discord.
 - No gambling, betting, payment, or money-handling features. "Money League" is just a league nickname; the bot does not track payments or dues.
 - Reminders never use `@everyone`/`@here` and only mention linked members who are in the selected league.

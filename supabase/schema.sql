@@ -93,6 +93,33 @@ create index if not exists idx_trade_offers_status on public.trade_offers(status
 create index if not exists idx_trade_offers_created_at on public.trade_offers(created_at);
 
 -- ============================================================
+-- Table: draft_grades
+-- Immutable history of league-wide AI-assisted draft analyses. The
+-- latest row for a guild/league powers /draft_grade.
+-- ============================================================
+create table if not exists public.draft_grades (
+  id uuid primary key default gen_random_uuid(),
+  guild_id text not null,
+  league_id text not null,
+  league_nickname text not null,
+  league_name text,
+  season text,
+  generated_by_discord_user_id text not null,
+  model_provider text not null,
+  model_name text not null,
+  ranking_source text not null default 'fantasypros',
+  ranking_type text,
+  input_hash text not null,
+  result jsonb not null,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_draft_grades_guild_league
+  on public.draft_grades(guild_id, league_id);
+create index if not exists idx_draft_grades_created_at
+  on public.draft_grades(created_at desc);
+
+-- ============================================================
 -- updated_at trigger
 -- ============================================================
 create or replace function public.set_updated_at()
@@ -127,3 +154,4 @@ create trigger trg_trade_offers_updated_at
 alter table public.linked_users enable row level security;
 alter table public.guild_leagues enable row level security;
 alter table public.trade_offers enable row level security;
+alter table public.draft_grades enable row level security;

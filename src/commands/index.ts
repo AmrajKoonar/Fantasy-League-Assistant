@@ -46,6 +46,8 @@ import draftOrder from './draftOrder';
 import draftResults from './draftResults';
 import tradedPicks from './tradedPicks';
 import playoffBracket from './playoffBracket';
+import createDraftGrades from './createDraftGrades';
+import draftGrade from './draftGrade';
 
 import transactions from './transactions';
 import tradeHistory from './tradeHistory';
@@ -107,6 +109,8 @@ export const commands: BotCommand[] = [
   draftResults,
   tradedPicks,
   playoffBracket,
+  createDraftGrades,
+  draftGrade,
   // Transactions
   transactions,
   tradeHistory,

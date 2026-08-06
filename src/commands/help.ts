@@ -84,6 +84,14 @@ const SECTIONS: HelpSection[] = [
       { usage: '/draft [league] [round]', description: 'Draft info and picks by round.' },
       { usage: '/draft_order [league]', description: 'Draft pick order.' },
       { usage: '/draft_results [league] [round]', description: 'Draft picks by round.' },
+      {
+        usage: '/create_draft_grades [league]',
+        description: 'Generate AI-assisted league draft grades (admin/owner only).',
+      },
+      {
+        usage: '/draft_grade [league] [user]',
+        description: "Show a team's latest saved draft grade.",
+      },
       { usage: '/traded_picks [league]', description: 'Draft picks that have been traded.' },
       {
         usage: '/playoff_bracket [league] [bracket]',
