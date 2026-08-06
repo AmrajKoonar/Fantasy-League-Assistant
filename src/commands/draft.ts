@@ -5,16 +5,15 @@ import { getTeamNamesByRosterId } from '../services/rosterService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
 import { Messages, UserFacingError } from '../utils/errors';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { SleeperDraftPick } from '../types/sleeper';
 import type { BotCommand } from '../types/commands';
 
-function pickPlayerName(pick: SleeperDraftPick): string {
+function pickPlayerDetails(pick: SleeperDraftPick): [string, string, string] {
   const meta = pick.metadata;
   const name = [meta?.first_name, meta?.last_name].filter(Boolean).join(' ');
-  const details = [meta?.position, meta?.team].filter(Boolean).join(' - ');
-  return `${name || pick.player_id}${details ? ` (${details})` : ''}`;
+  return [name || pick.player_id, meta?.position ?? '—', meta?.team ?? '—'];
 }
 
 const draft: BotCommand = {
@@ -89,18 +88,28 @@ const draft: BotCommand = {
 
       if (roundPicks.length > 0) {
         const teamNames = await getTeamNamesByRosterId(guildLeague.league_id);
-        const lines = roundPicks
+        const rows = roundPicks
           .sort((a, b) => a.pick_no - b.pick_no)
           .map((pick) => {
             const team =
               pick.roster_id !== null
                 ? (teamNames.get(pick.roster_id) ?? `Roster ${pick.roster_id}`)
                 : 'Unknown team';
-            return `**${pick.pick_no}.** ${pickPlayerName(pick)} — ${team}`;
+            const [player, position, nflTeam] = pickPlayerDetails(pick);
+            return [pick.pick_no, player, position, nflTeam, team];
           });
         embed.addFields({
           name: `Round ${round} picks`,
-          value: truncate(lines.join('\n'), 1024),
+          value: formatCodeTable(
+            [
+              { header: 'Pick', align: 'right' },
+              { header: 'Player', maxWidth: 20 },
+              { header: 'Pos' },
+              { header: 'NFL' },
+              { header: 'Fantasy Team', maxWidth: 20 },
+            ],
+            rows,
+          ),
           inline: false,
         });
       } else {

@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getWaiverOrder } from '../services/managerService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
@@ -32,14 +32,24 @@ const waiverOrder: BotCommand = {
 
     const order = await getWaiverOrder(guildLeague.league_id);
 
-    const lines = order.map((entry, index) => {
-      const priority = entry.waiverPosition !== null ? `#${entry.waiverPosition}` : 'N/A';
-      return `**${index + 1}.** ${entry.teamName} — ${entry.managerName} (${priority})`;
-    });
+    const table = formatCodeTable(
+      [
+        { header: '#', align: 'right' },
+        { header: 'Team', maxWidth: 26 },
+        { header: 'Manager', maxWidth: 22 },
+        { header: 'Priority', align: 'right' },
+      ],
+      order.map((entry, index) => [
+        index + 1,
+        entry.teamName,
+        entry.managerName,
+        entry.waiverPosition !== null ? `#${entry.waiverPosition}` : 'N/A',
+      ]),
+    );
 
     const embed = infoEmbed(
       `Waiver order — ${guildLeague.league_name ?? guildLeague.league_nickname}`,
-      truncate(lines.join('\n'), 4096) || 'No waiver data available.',
+      order.length > 0 ? table : 'No waiver data available.',
     ).setFooter({
       text: 'Leagues that use FAAB may not rely on waiver priority.',
     });

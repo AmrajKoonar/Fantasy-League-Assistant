@@ -137,16 +137,6 @@ const SECTIONS: HelpSection[] = [
       },
     ],
   },
-  {
-    title: '🎉 Fun',
-    commands: [
-      { usage: '/luck_rating [league] [user]', description: 'How lucky a team has been.' },
-      { usage: '/panic_meter [league] [user]', description: 'A playful panic level for a team.' },
-      { usage: '/benchwarmer [league] [week]', description: 'Highest bench score of a week.' },
-      { usage: '/random_team [league]', description: 'Randomly pick a team.' },
-      { usage: '/trash_talk [league] [user]', description: 'A light fantasy football joke.' },
-    ],
-  },
 ];
 
 const help: BotCommand = {

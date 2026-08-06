@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getPowerRankings, POWER_FORMULA } from '../services/powerRankingService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { formatRecord, truncate } from '../utils/formatting';
+import { formatCodeTable, formatRecord } from '../utils/formatting';
 import { formatPoints } from '../utils/sleeperPoints';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
@@ -33,15 +33,28 @@ const powerRankings: BotCommand = {
 
     const rankings = await getPowerRankings(guildLeague.league_id);
 
-    const lines = rankings.map((entry) => {
-      const record = formatRecord(entry.wins, entry.losses, entry.ties);
-      const diff = `${entry.pointDiff >= 0 ? '+' : ''}${formatPoints(entry.pointDiff)}`;
-      return `**${entry.rank}.** ${entry.teamName} — ${record} | PF ${formatPoints(entry.pointsFor)} | Diff ${diff} | Power **${entry.powerScore.toFixed(2)}**`;
-    });
+    const table = formatCodeTable(
+      [
+        { header: '#', align: 'right' },
+        { header: 'Team', maxWidth: 24 },
+        { header: 'Record', align: 'right' },
+        { header: 'PF', align: 'right' },
+        { header: 'Diff', align: 'right' },
+        { header: 'Power', align: 'right' },
+      ],
+      rankings.map((entry) => [
+        entry.rank,
+        entry.teamName,
+        formatRecord(entry.wins, entry.losses, entry.ties),
+        formatPoints(entry.pointsFor),
+        `${entry.pointDiff >= 0 ? '+' : ''}${formatPoints(entry.pointDiff)}`,
+        entry.powerScore.toFixed(2),
+      ]),
+    );
 
     const embed = infoEmbed(
       `Power rankings — ${guildLeague.league_name ?? guildLeague.league_nickname}`,
-      truncate(lines.join('\n'), 4096),
+      table,
     ).setFooter({ text: `Bot-calculated (not official). Formula: ${POWER_FORMULA}` });
 
     await interaction.editReply({ embeds: [embed] });

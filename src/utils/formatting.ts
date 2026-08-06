@@ -63,6 +63,95 @@ export function truncate(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
+export interface CodeTableColumn {
+  header: string;
+  align?: 'left' | 'right';
+  maxWidth?: number;
+}
+
+function cleanTableCell(value: unknown): string {
+  return String(value ?? '—')
+    .replace(/`/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Approximate the width Discord uses for a grapheme in a monospaced code block. */
+function graphemeWidth(grapheme: string): number {
+  if (/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(grapheme)) return 2;
+  const codePoint = grapheme.codePointAt(0) ?? 0;
+  return codePoint >= 0x1100 &&
+    (codePoint <= 0x115f ||
+      codePoint === 0x2329 ||
+      codePoint === 0x232a ||
+      (codePoint >= 0x2e80 && codePoint <= 0xa4cf) ||
+      (codePoint >= 0xac00 && codePoint <= 0xd7a3) ||
+      (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
+      (codePoint >= 0xfe10 && codePoint <= 0xfe6f) ||
+      (codePoint >= 0xff00 && codePoint <= 0xff60) ||
+      (codePoint >= 0xffe0 && codePoint <= 0xffe6))
+    ? 2
+    : 1;
+}
+
+function graphemes(value: string): string[] {
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+  return [...segmenter.segment(value)].map((part) => part.segment);
+}
+
+function displayWidth(value: string): number {
+  return graphemes(value).reduce((width, grapheme) => width + graphemeWidth(grapheme), 0);
+}
+
+function fitTableCell(value: string, maxWidth: number): string {
+  if (displayWidth(value) <= maxWidth) return value;
+  const targetWidth = Math.max(1, maxWidth - 1);
+  let result = '';
+  let width = 0;
+  for (const grapheme of graphemes(value)) {
+    const nextWidth = graphemeWidth(grapheme);
+    if (width + nextWidth > targetWidth) break;
+    result += grapheme;
+    width += nextWidth;
+  }
+  return `${result}…`;
+}
+
+function padTableCell(value: string, width: number, align: 'left' | 'right'): string {
+  const padding = ' '.repeat(Math.max(0, width - displayWidth(value)));
+  return align === 'right' ? `${padding}${value}` : `${value}${padding}`;
+}
+
+/**
+ * Builds a Discord-safe monospaced table with widths derived from the current data.
+ * Long cells are capped so a renamed team cannot make the whole table unreadable.
+ */
+export function formatCodeTable(columns: CodeTableColumn[], rows: unknown[][]): string {
+  const cleanedHeaders = columns.map((column) =>
+    fitTableCell(cleanTableCell(column.header), column.maxWidth ?? Number.POSITIVE_INFINITY),
+  );
+  const cleanedRows = rows.map((row) =>
+    columns.map((column, index) =>
+      fitTableCell(cleanTableCell(row[index]), column.maxWidth ?? Number.POSITIVE_INFINITY),
+    ),
+  );
+  const widths = columns.map((column, index) => {
+    const contentWidth = Math.max(
+      displayWidth(cleanedHeaders[index]),
+      ...cleanedRows.map((row) => displayWidth(row[index])),
+    );
+    return Math.min(contentWidth, column.maxWidth ?? contentWidth);
+  });
+  const formatRow = (row: string[]): string =>
+    row
+      .map((cell, index) => padTableCell(cell, widths[index], columns[index].align ?? 'left'))
+      .join('  ')
+      .trimEnd();
+  const separator = widths.map((width) => '-'.repeat(width)).join('  ');
+  const lines = [formatRow(cleanedHeaders), separator, ...cleanedRows.map(formatRow)];
+  return `\`\`\`\n${lines.join('\n')}\n\`\`\``;
+}
+
 /** Formats a millisecond epoch as a Discord relative timestamp (e.g. "2 hours ago"). */
 export function discordRelativeTime(epochMs: number): string {
   return `<t:${Math.floor(epochMs / 1000)}:R>`;

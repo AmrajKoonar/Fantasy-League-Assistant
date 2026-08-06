@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getCurrentNflWeek, getWeekMatchups } from '../services/matchupService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { formatPoints } from '../utils/sleeperPoints';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
@@ -54,25 +54,43 @@ const matchups: BotCommand = {
       return;
     }
 
-    const lines = pairings.map((pairing) => {
+    const rows = pairings.map((pairing) => {
       if (pairing.teams.length < 2) {
         const team = pairing.teams[0];
-        return `**${team.teamName}** — ${formatPoints(team.points)} (no opponent)`;
+        return [team.teamName, formatPoints(team.points), '', '', '—', 'No opponent'];
       }
       const [a, b] = pairing.teams;
-      let verdict = '';
+      let verdict = 'Tied';
       if (a.points !== b.points) {
         const leader = a.points > b.points ? a : b;
-        verdict = ` — **${leader.teamName}** leads`;
-      } else if (a.points > 0) {
-        verdict = ' — tied';
+        verdict = `${leader.teamName} leads`;
+      } else if (a.points === 0) {
+        verdict = 'Not started';
       }
-      return `**${a.teamName}** ${formatPoints(a.points)} vs ${formatPoints(b.points)} **${b.teamName}**${verdict}`;
+      return [
+        a.teamName,
+        formatPoints(a.points),
+        'vs',
+        formatPoints(b.points),
+        b.teamName,
+        verdict,
+      ];
     });
+    const table = formatCodeTable(
+      [
+        { header: 'Team', maxWidth: 20 },
+        { header: 'Score', align: 'right' },
+        { header: '' },
+        { header: 'Score', align: 'right' },
+        { header: 'Team', maxWidth: 20 },
+        { header: 'Status', maxWidth: 24 },
+      ],
+      rows,
+    );
 
     const embed = infoEmbed(
       `Matchups — ${guildLeague.league_name ?? guildLeague.league_nickname} (Week ${week})`,
-      truncate(lines.join('\n\n'), 4096),
+      table,
     );
 
     await interaction.editReply({ embeds: [embed] });

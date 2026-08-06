@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getDraftResults } from '../services/draftService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
@@ -58,15 +58,28 @@ const draftResults: BotCommand = {
       return;
     }
 
-    const lines = view.picks.map((pick) => {
-      const amount = pick.isAuction && pick.amount ? ` ($${pick.amount})` : '';
-      return `**${pick.pickNo}.** ${pick.playerName} (${pick.position} - ${pick.team}) → ${pick.teamName}${amount}`;
-    });
+    const showAmount = view.picks.some((pick) => pick.isAuction && pick.amount);
+    const columns = [
+      { header: 'Pick', align: 'right' as const },
+      { header: 'Player', maxWidth: 24 },
+      { header: 'Pos' },
+      { header: 'NFL' },
+      { header: 'Fantasy Team', maxWidth: 24 },
+      ...(showAmount ? [{ header: 'Price', align: 'right' as const }] : []),
+    ];
+    const table = formatCodeTable(
+      columns,
+      view.picks.map((pick) => [
+        pick.pickNo,
+        pick.playerName,
+        pick.position,
+        pick.team,
+        pick.teamName,
+        ...(showAmount ? [pick.isAuction && pick.amount ? `$${pick.amount}` : '—'] : []),
+      ]),
+    );
 
-    const embed = infoEmbed(
-      `${title} — Round ${view.round}`,
-      truncate(lines.join('\n'), 4096),
-    ).setFooter({
+    const embed = infoEmbed(`${title} — Round ${view.round}`, table).setFooter({
       text: `Draft status: ${view.draft.status}${view.totalRounds ? ` • ${view.totalRounds} rounds` : ''}`,
     });
 

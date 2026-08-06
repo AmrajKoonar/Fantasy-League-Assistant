@@ -3,12 +3,10 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getStandings } from '../services/standingsService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { formatRecord, truncate } from '../utils/formatting';
+import { formatCodeTable, formatRecord } from '../utils/formatting';
 import { formatPoints } from '../utils/sleeperPoints';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
-
-const MEDALS = ['🥇', '🥈', '🥉'];
 
 const standings: BotCommand = {
   data: new SlashCommandBuilder()
@@ -35,15 +33,26 @@ const standings: BotCommand = {
 
     const entries = await getStandings(guildLeague.league_id);
 
-    const lines = entries.map((entry) => {
-      const marker = MEDALS[entry.rank - 1] ?? `**${entry.rank}.**`;
-      const record = formatRecord(entry.wins, entry.losses, entry.ties);
-      return `${marker} **${entry.teamName}** — ${record} | PF ${formatPoints(entry.pointsFor)} | PA ${formatPoints(entry.pointsAgainst)}`;
-    });
+    const table = formatCodeTable(
+      [
+        { header: '#', align: 'right' },
+        { header: 'Team', maxWidth: 28 },
+        { header: 'Record', align: 'right' },
+        { header: 'PF', align: 'right' },
+        { header: 'PA', align: 'right' },
+      ],
+      entries.map((entry) => [
+        entry.rank,
+        entry.teamName,
+        formatRecord(entry.wins, entry.losses, entry.ties),
+        formatPoints(entry.pointsFor),
+        formatPoints(entry.pointsAgainst),
+      ]),
+    );
 
     const embed = infoEmbed(
       `Standings — ${guildLeague.league_name ?? guildLeague.league_nickname}`,
-      truncate(lines.join('\n'), 4096),
+      table,
     );
 
     await interaction.editReply({ embeds: [embed] });
