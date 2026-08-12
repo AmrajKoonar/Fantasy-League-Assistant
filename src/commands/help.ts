@@ -1,4 +1,4 @@
-import { MessageFlags, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { infoEmbed } from '../utils/embeds';
 import type { BotCommand } from '../types/commands';
 
@@ -163,7 +163,7 @@ const help: BotCommand = {
       embed.addFields({ name: section.title, value, inline: false });
     }
 
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.reply({ embeds: [embed] });
   },
 };
 

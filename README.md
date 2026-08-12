@@ -173,7 +173,7 @@ Run `/help` in Discord for the same overview, grouped and searchable. Options in
 | Command         | Description                               | Visibility |
 | --------------- | ----------------------------------------- | ---------- |
 | `/ping`         | Health check with latency                 | Public     |
-| `/help`         | Grouped overview of every command         | Ephemeral  |
+| `/help`         | Grouped overview of every command         | Public     |
 | `/current_week` | Current NFL season, week, and season type | Public     |
 
 ### Account
