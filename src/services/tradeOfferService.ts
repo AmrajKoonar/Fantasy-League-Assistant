@@ -336,7 +336,7 @@ function embedForStatus(status: TradeOfferStatus, title: string): EmbedBuilder {
 
 /** Builds the trade-offer embed shown in the channel. */
 export function buildTradeEmbed(row: TradeOfferRow): EmbedBuilder {
-  const embed = embedForStatus(row.status, 'Trade Offer').setDescription(DISCLAIMER);
+  const embed = embedForStatus(row.status, '🔁 Trade Offer').setDescription(DISCLAIMER);
 
   const fields: APIEmbedField[] = [
     { name: 'League', value: row.league_nickname, inline: true },

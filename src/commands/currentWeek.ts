@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import * as sleeperApi from '../services/sleeperApi';
+import { fantasyWeekFromNflState } from '../services/matchupService';
 import { infoEmbed } from '../utils/embeds';
 import { Messages, UserFacingError } from '../utils/errors';
 import type { BotCommand } from '../types/commands';
@@ -14,14 +15,17 @@ const currentWeek: BotCommand = {
 
     const state = await sleeperApi.getNflState();
     if (!state) throw new UserFacingError(Messages.genericFailure);
+    const fantasyWeek = fantasyWeekFromNflState(state);
+    const sleeperPhaseWeek = state.display_week ?? state.week;
+    const seasonType = state.season_type?.toLowerCase() === 'pre' ? 'Preseason' : state.season_type;
 
     const embed = infoEmbed('Current NFL state').addFields(
       { name: 'Season', value: state.season ?? '—', inline: true },
-      { name: 'Season type', value: state.season_type ?? '—', inline: true },
-      { name: 'Current week', value: String(state.week ?? '—'), inline: true },
+      { name: 'Season type', value: seasonType ?? '—', inline: true },
+      { name: 'Fantasy week', value: String(fantasyWeek), inline: true },
       {
-        name: 'Display week',
-        value: String(state.display_week ?? state.week ?? '—'),
+        name: 'Sleeper phase week',
+        value: String(sleeperPhaseWeek ?? '—'),
         inline: true,
       },
       { name: 'League season', value: state.league_season ?? '—', inline: true },

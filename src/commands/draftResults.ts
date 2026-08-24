@@ -124,6 +124,7 @@ const draftResults: BotCommand = {
           pick.teamName,
           ...(showAmount ? [pick.isAuction && pick.amount !== null ? `$${pick.amount}` : '—'] : []),
         ]),
+        { forceCodeBlock: view.round === 'all' },
       );
       return infoEmbed(`${title} — Round ${roundNumber}`, table).setFooter({
         text: `Draft status: ${view.draft.status}${view.totalRounds ? ` • ${view.totalRounds} rounds` : ''}`,

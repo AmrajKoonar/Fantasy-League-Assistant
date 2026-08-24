@@ -4,7 +4,7 @@ import { getCurrentNflWeek } from '../services/matchupService';
 import { getWeekTransactions, type TransactionView } from '../services/transactionService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { discordRelativeTime, truncate } from '../utils/formatting';
+import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
@@ -15,23 +15,22 @@ const TYPE_LABELS: Record<string, string> = {
   commissioner: '🛠️ Commissioner',
 };
 
-function formatTransaction(tx: TransactionView): string {
+function transactionRows(tx: TransactionView): unknown[][] {
   const label = TYPE_LABELS[tx.type] ?? `📄 ${tx.type}`;
-  const lines: string[] = [`${label} — ${tx.status} ${discordRelativeTime(tx.createdAt)}`];
+  const faab = tx.faabSpent !== null && tx.faabSpent > 0 ? `$${tx.faabSpent}` : '—';
+  const rows: unknown[][] = [];
 
   for (const add of tx.adds) {
-    lines.push(`  ➕ ${add.playerName} → ${add.teamName}`);
+    rows.push([label, `➕ ${add.playerName}`, add.teamName, tx.status, faab]);
   }
   for (const drop of tx.drops) {
-    lines.push(`  ➖ ${drop.playerName} (${drop.teamName})`);
-  }
-  if (tx.faabSpent !== null && tx.faabSpent > 0) {
-    lines.push(`  💰 FAAB: $${tx.faabSpent}`);
+    rows.push([label, `➖ ${drop.playerName}`, drop.teamName, tx.status, faab]);
   }
   if (tx.adds.length === 0 && tx.drops.length === 0 && tx.teamsInvolved.length > 0) {
-    lines.push(`  Teams: ${tx.teamsInvolved.join(', ')}`);
+    rows.push([label, tx.teamsInvolved.join(' ↔ '), '—', tx.status, faab]);
   }
-  return lines.join('\n');
+  if (rows.length === 0) rows.push([label, 'No player details', '—', tx.status, faab]);
+  return rows;
 }
 
 const transactions: BotCommand = {
@@ -77,7 +76,19 @@ const transactions: BotCommand = {
       return;
     }
 
-    const embed = infoEmbed(title, truncate(views.map(formatTransaction).join('\n\n'), 4096));
+    const rows = views.flatMap(transactionRows).slice(0, 40);
+    const table = formatCodeTable(
+      [
+        { header: 'Type', maxWidth: 14 },
+        { header: 'Activity', maxWidth: 26 },
+        { header: 'Team', maxWidth: 20 },
+        { header: 'Status', maxWidth: 12 },
+        { header: 'FAAB', align: 'right', maxWidth: 7 },
+      ],
+      rows,
+      { forceCodeBlock: true },
+    );
+    const embed = infoEmbed(title, table);
 
     await interaction.editReply({ embeds: [embed] });
   },

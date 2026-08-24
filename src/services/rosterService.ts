@@ -28,6 +28,10 @@ export async function buildRosterView(
 
   const players = await playerCache.getAllPlayers();
   const line = (playerId: string): string => formatPlayerLine(players[playerId], playerId);
+  const reserveLine = (playerId: string): string => {
+    const formatted = line(playerId);
+    return formatted.includes('🔴') ? formatted : `🔴 ${formatted}`;
+  };
 
   const starterIds = (roster.starters ?? []).filter((id) => id && id !== '0');
   const allIds = roster.players ?? [];
@@ -47,7 +51,7 @@ export async function buildRosterView(
     },
     starters: starterIds.map(line),
     bench: benchIds.map(line),
-    reserve: reserveIds.map(line),
+    reserve: reserveIds.map(reserveLine),
     taxi: taxiIds.map(line),
   };
 }

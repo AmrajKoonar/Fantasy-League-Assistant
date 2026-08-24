@@ -54,25 +54,41 @@ const matchups: BotCommand = {
       return;
     }
 
+    const highestScore = Math.max(
+      0,
+      ...pairings.flatMap((pairing) => pairing.teams.map((team) => team.points)),
+    );
+    const highScoreMarker = (points: number): string =>
+      highestScore > 0 && points === highestScore ? '🔥 ' : '';
+
     const rows = pairings.map((pairing) => {
       if (pairing.teams.length < 2) {
         const team = pairing.teams[0];
-        return [team.teamName, formatPoints(team.points), '', '', '—', 'No opponent'];
+        return [
+          `${highScoreMarker(team.points)}${team.teamName}`,
+          formatPoints(team.points),
+          '',
+          '',
+          '—',
+          'No opponent',
+        ];
       }
       const [a, b] = pairing.teams;
       let verdict = 'Tied';
+      let winnerRosterId: number | null = null;
       if (a.points !== b.points) {
         const leader = a.points > b.points ? a : b;
+        winnerRosterId = leader.rosterId;
         verdict = `${leader.teamName} leads`;
       } else if (a.points === 0) {
         verdict = 'Not started';
       }
       return [
-        a.teamName,
+        `${winnerRosterId === a.rosterId ? '🏆 ' : ''}${highScoreMarker(a.points)}${a.teamName}`,
         formatPoints(a.points),
         'vs',
         formatPoints(b.points),
-        b.teamName,
+        `${winnerRosterId === b.rosterId ? '🏆 ' : ''}${highScoreMarker(b.points)}${b.teamName}`,
         verdict,
       ];
     });
@@ -86,6 +102,7 @@ const matchups: BotCommand = {
         { header: 'Status', maxWidth: 24 },
       ],
       rows,
+      { forceCodeBlock: true },
     );
 
     const embed = infoEmbed(

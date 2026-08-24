@@ -106,6 +106,120 @@ function corePlayerNames(profile: DraftGradeTeamProfile, count = 2): string[] {
     .slice(0, count);
 }
 
+function naturalList(values: string[]): string {
+  if (values.length <= 1) return values[0] ?? '';
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0, -1).join(', ')}, and ${values.at(-1)}`;
+}
+
+function lineNamesRosterPlayer(line: string, profile: DraftGradeTeamProfile): boolean {
+  const normalized = line.toLocaleLowerCase();
+  return profile.players.some((player) => normalized.includes(player.name.toLocaleLowerCase()));
+}
+
+function playerReferenceOrder(
+  profile: DraftGradeTeamProfile,
+  kind: 'strength' | 'weakness',
+): string[] {
+  const players = [...profile.players];
+  players.sort((a, b) => {
+    if (kind === 'weakness') {
+      const aRisk =
+        Number(Boolean(a.injuryStatus)) * 4 +
+        Number(a.isReserve || a.isTaxi) * 2 +
+        Number(a.isUnmatched);
+      const bRisk =
+        Number(Boolean(b.injuryStatus)) * 4 +
+        Number(b.isReserve || b.isTaxi) * 2 +
+        Number(b.isUnmatched);
+      if (aRisk !== bRisk) return bRisk - aRisk;
+    } else if (a.isStarter !== b.isStarter) {
+      return a.isStarter ? -1 : 1;
+    }
+    return playerRank(profile, a.name) - playerRank(profile, b.name);
+  });
+  return players.map((player) => player.name);
+}
+
+function addPlayerReferences(
+  lines: string[],
+  profile: DraftGradeTeamProfile,
+  kind: 'strength' | 'weakness',
+): string[] {
+  const players = playerReferenceOrder(profile, kind);
+  if (players.length === 0) return lines;
+  const strengthClosers = [
+    (name: string) => `${name} is positioned to turn that edge into weekly points.`,
+    (name: string) => `${name} gives the manager a direct way to capitalize on it.`,
+    (name: string) => `That advantage is most visible in ${name}'s role.`,
+  ];
+  const weaknessClosers = [
+    (name: string) => `${name} becomes especially important if that concern surfaces.`,
+    (name: string) => `The margin improves if ${name} supplies a steady weekly role.`,
+    (name: string) => `That pressure puts extra responsibility on ${name}.`,
+  ];
+  const closers = kind === 'strength' ? strengthClosers : weaknessClosers;
+  return lines.map((line, index) => {
+    if (lineNamesRosterPlayer(line, profile)) return line;
+    const player = players[index % players.length];
+    const closer = closers[(profile.rosterId + index) % closers.length](player);
+    const base = truncate(line.replace(/[.!?]+$/, ''), Math.max(80, 277 - closer.length)).replace(
+      /…$/,
+      '',
+    );
+    return `${base}. ${closer}`;
+  });
+}
+
+function advancedMetrics(profile: DraftGradeTeamProfile, metrics: DraftGradeMetrics): string[] {
+  const facts: string[] = [];
+  const rankedPlayers = profile.players
+    .filter((player) => player.fantasyprosOverallRank !== null)
+    .sort(
+      (a, b) =>
+        (a.fantasyprosOverallRank ?? Number.POSITIVE_INFINITY) -
+        (b.fantasyprosOverallRank ?? Number.POSITIVE_INFINITY),
+    );
+  const top24 = rankedPlayers.filter((player) => (player.fantasyprosOverallRank ?? 25) <= 24);
+  if (top24.length > 0) {
+    const top24Names = naturalList(top24.slice(0, 4).map((player) => player.name));
+    facts.push(
+      `Features ${top24.length} top-24 FantasyPros-ranked player(s)${top24.length > 4 ? ', including' : ':'} ${top24Names}.`,
+    );
+  }
+
+  const namesById = new Map(profile.players.map((player) => [player.sleeperPlayerId, player.name]));
+  const reaches = profile.draftPicks
+    .filter((pick) => pick.valueDelta !== null && pick.valueDelta <= -10)
+    .sort((a, b) => (a.valueDelta ?? 0) - (b.valueDelta ?? 0))
+    .map((pick) => namesById.get(pick.playerId))
+    .filter((name): name is string => Boolean(name))
+    .slice(0, 3);
+  if (reaches.length > 0) {
+    facts.push(
+      `Several selections came earlier than their FantasyPros consensus value, including ${naturalList(reaches)}.`,
+    );
+  }
+
+  const injured = profile.players.filter((player) => Boolean(player.injuryStatus));
+  if (injured.length > 0) {
+    const injuryNames = naturalList(injured.slice(0, 4).map((player) => player.name));
+    facts.push(
+      `${injured.length} player(s) carry a current Sleeper injury designation${injured.length > 4 ? ', including' : ':'} ${injuryNames}.`,
+    );
+  }
+
+  if (metrics.averageStarterRank !== null) {
+    facts.push(
+      `The matched starters have an average FantasyPros overall rank of ${Math.round(metrics.averageStarterRank)}.`,
+    );
+  }
+  facts.push(
+    `FantasyPros rankings matched ${rankedPlayers.length} of ${profile.players.length} drafted player(s) in this report.`,
+  );
+  return uniqueLines(facts).slice(0, 3);
+}
+
 function strongestSkillPosition(metrics: DraftGradeMetrics): 'RB' | 'WR' | 'TE' {
   const positions: Array<'RB' | 'WR' | 'TE'> = ['RB', 'WR', 'TE'];
   return positions.sort((a, b) => metrics.positionDepth[b] - metrics.positionDepth[a])[0];
@@ -417,25 +531,33 @@ export function normalizeDraftGradeResults(
     const score = scoreForGrade(grade, entry.blendedScore);
     const counts = requiredCounts(grade, score);
     const limitProviderReference = providerReferenceLimiter();
-    const strengths = exactUniqueLines(
-      (entry.ai?.strengths ?? []).map(limitProviderReference),
-      fallbackStrengths(entry.profile, entry.metrics).map(limitProviderReference),
-      counts.strengths,
+    const strengths = addPlayerReferences(
+      exactUniqueLines(
+        (entry.ai?.strengths ?? []).map(limitProviderReference),
+        fallbackStrengths(entry.profile, entry.metrics).map(limitProviderReference),
+        counts.strengths,
+        entry.profile,
+        entry.metrics,
+        'strength',
+        identityTokens,
+        usedFeedbackSignatures,
+      ),
       entry.profile,
-      entry.metrics,
       'strength',
-      identityTokens,
-      usedFeedbackSignatures,
     );
-    const weaknesses = exactUniqueLines(
-      (entry.ai?.weaknesses ?? []).map(limitProviderReference),
-      fallbackWeaknesses(entry.profile, entry.metrics).map(limitProviderReference),
-      counts.weaknesses,
+    const weaknesses = addPlayerReferences(
+      exactUniqueLines(
+        (entry.ai?.weaknesses ?? []).map(limitProviderReference),
+        fallbackWeaknesses(entry.profile, entry.metrics).map(limitProviderReference),
+        counts.weaknesses,
+        entry.profile,
+        entry.metrics,
+        'weakness',
+        identityTokens,
+        usedFeedbackSignatures,
+      ),
       entry.profile,
-      entry.metrics,
       'weakness',
-      identityTokens,
-      usedFeedbackSignatures,
     );
     const summaryInput = limitProviderReference(
       entry.ai?.summary?.trim() ||
@@ -468,6 +590,7 @@ export function normalizeDraftGradeResults(
       projected_record: `${projectedWins}-${15 - projectedWins}`,
       strengths,
       weaknesses,
+      advanced_metrics: advancedMetrics(entry.profile, entry.metrics),
       summary: truncate(summary.replace(/\s+/g, ' ').trim(), 700),
       metrics: entry.metrics,
     };

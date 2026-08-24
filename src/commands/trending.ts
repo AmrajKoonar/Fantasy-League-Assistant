@@ -16,8 +16,8 @@ const trending: BotCommand = {
     .addStringOption((option) =>
       option
         .setName('type')
-        .setDescription('Trending adds or drops')
-        .setRequired(true)
+        .setDescription('Trending adds or drops (defaults to adds)')
+        .setRequired(false)
         .addChoices({ name: 'add', value: 'add' }, { name: 'drop', value: 'drop' }),
     )
     .addIntegerOption((option) =>
@@ -40,7 +40,7 @@ const trending: BotCommand = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     await interaction.deferReply();
 
-    const type = interaction.options.getString('type', true) as TrendingType;
+    const type = (interaction.options.getString('type') ?? 'add') as TrendingType;
     const hours = interaction.options.getInteger('hours') ?? 24;
     const limit = Math.min(interaction.options.getInteger('limit') ?? 10, MAX_LIMIT);
 
@@ -65,9 +65,10 @@ const trending: BotCommand = {
         { header: 'Player', maxWidth: 28 },
         { header: 'Pos' },
         { header: 'Team' },
-        { header: type === 'add' ? 'Adds' : 'Drops', align: 'right' },
+        { header: type === 'add' ? '➕ Adds' : '➖ Drops', align: 'right' },
       ],
       rows,
+      { forceCodeBlock: true },
     );
 
     const verb = type === 'add' ? 'added' : 'dropped';

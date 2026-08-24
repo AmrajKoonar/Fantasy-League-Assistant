@@ -65,7 +65,7 @@ const tradeHistoryLocal: BotCommand = {
       await interaction.editReply({
         embeds: [
           infoEmbed(
-            'Discord trade offers',
+            '🔁 Discord trade offers',
             'No Discord-only trade offers found for those filters. Create one with `/trade`.',
           ),
         ],
@@ -84,7 +84,10 @@ const tradeHistoryLocal: BotCommand = {
       ].join('\n');
     });
 
-    const embed = infoEmbed('Discord trade offers', truncate(blocks.join('\n\n'), 4096)).setFooter({
+    const embed = infoEmbed(
+      '🔁 Discord trade offers',
+      truncate(blocks.join('\n\n'), 4096),
+    ).setFooter({
       text: 'Discord-only proposals. Trades are completed manually in Sleeper.',
     });
 

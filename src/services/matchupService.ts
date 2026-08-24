@@ -1,7 +1,7 @@
 import * as sleeperApi from './sleeperApi';
 import { Messages, UserFacingError } from '../utils/errors';
 import { teamNameForRoster } from '../utils/formatting';
-import type { SleeperLeagueUser, SleeperMatchup } from '../types/sleeper';
+import type { SleeperLeagueUser, SleeperMatchup, SleeperNflState } from '../types/sleeper';
 
 export interface MatchupTeam {
   rosterId: number;
@@ -14,13 +14,19 @@ export interface MatchupPairing {
   teams: MatchupTeam[];
 }
 
-/** Current NFL week from Sleeper's state endpoint (display_week preferred). */
+/** Fantasy week to query. Sleeper's preseason display_week is not a fantasy week. */
+export function fantasyWeekFromNflState(state: SleeperNflState): number {
+  const seasonType = state.season_type?.trim().toLowerCase();
+  if (seasonType !== 'regular' && seasonType !== 'post') return 1;
+  const week = state.display_week ?? state.week;
+  return week && week > 0 ? week : 1;
+}
+
+/** Current fantasy week derived from Sleeper's NFL state endpoint. */
 export async function getCurrentNflWeek(): Promise<number> {
   const state = await sleeperApi.getNflState();
   if (!state) throw new UserFacingError(Messages.genericFailure);
-  const week = state.display_week ?? state.week;
-  // Off-season weeks can come back as 0; default to week 1 for usability.
-  return week && week > 0 ? week : 1;
+  return fantasyWeekFromNflState(state);
 }
 
 /**

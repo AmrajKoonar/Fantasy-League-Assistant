@@ -28,6 +28,28 @@ export function formatRecord(wins: number, losses: number, ties: number): string
   return ties > 0 ? `${wins}-${losses}-${ties}` : `${wins}-${losses}`;
 }
 
+/** Uses medals for the top three places and a number for every other rank. */
+export function formatRank(rank: number): string {
+  return ['🥇', '🥈', '🥉'][rank - 1] ?? String(rank);
+}
+
+/** Consistent visual severity for Sleeper injury designations. */
+export function injuryStatusEmoji(status: string | null | undefined): string {
+  const normalized = status?.trim().toLowerCase();
+  if (!normalized) return '';
+  if (normalized === 'q' || normalized.includes('questionable')) return '🟡';
+  if (normalized === 'd' || normalized.includes('doubtful')) return '🟠';
+  if (
+    normalized === 'o' ||
+    normalized === 'ir' ||
+    normalized.includes('out') ||
+    normalized.includes('injured reserve')
+  ) {
+    return '🔴';
+  }
+  return '';
+}
+
 /**
  * Best display name for a fantasy team: custom team name if set,
  * otherwise the owner's display name, otherwise a roster placeholder.
@@ -53,7 +75,10 @@ export function formatPlayerLine(player: SleeperPlayer | undefined, playerId: st
   const name = player.full_name ?? [player.first_name, player.last_name].filter(Boolean).join(' ');
   const position = player.position ?? player.fantasy_positions?.[0] ?? '?';
   const team = player.team ?? 'FA';
-  const injury = player.injury_status ? ` — ${player.injury_status}` : '';
+  const injuryEmoji = injuryStatusEmoji(player.injury_status);
+  const injury = player.injury_status
+    ? ` — ${injuryEmoji ? `${injuryEmoji} ` : ''}${player.injury_status}`
+    : '';
   return `${name || playerId} (${position} - ${team})${injury}`;
 }
 
@@ -67,6 +92,10 @@ export interface CodeTableColumn {
   header: string;
   align?: 'left' | 'right';
   maxWidth?: number;
+}
+
+export interface CodeTableOptions {
+  forceCodeBlock?: boolean;
 }
 
 function cleanTableCell(value: unknown): string {
@@ -122,11 +151,49 @@ function padTableCell(value: string, width: number, align: 'left' | 'right'): st
   return align === 'right' ? `${padding}${value}` : `${value}${padding}`;
 }
 
+const MOBILE_SAFE_TABLE_WIDTH = 42;
+
+function escapeDiscordMarkdown(value: string): string {
+  return value.replace(/([\\*_~|>])/g, '\\$1');
+}
+
+function formatStackedTable(columns: CodeTableColumn[], rows: string[][]): string {
+  const ordinalHeader = /^(?:#|rank|pick|slot|order)$/i;
+  const hasOrdinal = columns.length > 1 && ordinalHeader.test(columns[0].header.trim());
+
+  return rows
+    .map((row) => {
+      const ordinal = /^\d+$/.test(row[0]) ? `${row[0]}.` : row[0];
+      const title = hasOrdinal
+        ? `${ordinal} ${row[1]}`
+        : columns[0].header.trim()
+          ? `${columns[0].header}: ${row[0]}`
+          : row[0];
+      const detailsStart = hasOrdinal ? 2 : 1;
+      const details = columns.slice(detailsStart).map((column, offset) => {
+        const value = row[detailsStart + offset];
+        const header = column.header.trim();
+        return header
+          ? `**${escapeDiscordMarkdown(header)}:** ${escapeDiscordMarkdown(value)}`
+          : escapeDiscordMarkdown(value);
+      });
+
+      return [`**${escapeDiscordMarkdown(title)}**`, details.join(' • ')]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n\n');
+}
+
 /**
- * Builds a Discord-safe monospaced table with widths derived from the current data.
- * Long cells are capped so a renamed team cannot make the whole table unreadable.
+ * Builds a compact table when it safely fits on mobile. Wider results automatically
+ * become stacked, labeled entries so renamed teams never break column alignment.
  */
-export function formatCodeTable(columns: CodeTableColumn[], rows: unknown[][]): string {
+export function formatCodeTable(
+  columns: CodeTableColumn[],
+  rows: unknown[][],
+  options: CodeTableOptions = {},
+): string {
   const cleanedHeaders = columns.map((column) =>
     fitTableCell(cleanTableCell(column.header), column.maxWidth ?? Number.POSITIVE_INFINITY),
   );
@@ -142,6 +209,11 @@ export function formatCodeTable(columns: CodeTableColumn[], rows: unknown[][]): 
     );
     return Math.min(contentWidth, column.maxWidth ?? contentWidth);
   });
+  const renderedWidth =
+    widths.reduce((total, width) => total + width, 0) + (columns.length - 1) * 2;
+  if (!options.forceCodeBlock && renderedWidth > MOBILE_SAFE_TABLE_WIDTH) {
+    return formatStackedTable(columns, cleanedRows);
+  }
   const formatRow = (row: string[]): string =>
     row
       .map((cell, index) => padTableCell(cell, widths[index], columns[index].align ?? 'left'))

@@ -88,6 +88,8 @@ const matchupDetail: BotCommand = {
     );
     const [a, b] = teams;
     const margin = Math.abs(a.points - b.points);
+    const aWinner = a.points > b.points;
+    const bWinner = b.points > a.points;
 
     let verdict: string;
     if (a.points === b.points) {
@@ -107,9 +109,17 @@ const matchupDetail: BotCommand = {
         : '';
 
     const embed = infoEmbed(title).addFields(
-      { name: a.teamName, value: `**${formatPoints(a.points)}** pts`, inline: true },
+      {
+        name: `${aWinner ? '🏆 ' : ''}${a.teamName}`,
+        value: `**${formatPoints(a.points)}** pts`,
+        inline: true,
+      },
       { name: 'vs', value: '\u200b', inline: true },
-      { name: b.teamName, value: `**${formatPoints(b.points)}** pts`, inline: true },
+      {
+        name: `${bWinner ? '🏆 ' : ''}${b.teamName}`,
+        value: `**${formatPoints(b.points)}** pts`,
+        inline: true,
+      },
       { name: 'Result', value: `${verdict}${extras}`, inline: false },
     );
 

@@ -52,7 +52,7 @@ const biggestBlowout: BotCommand = {
 
     const embed = infoEmbed(
       title,
-      `💥 **${result.winner}** demolished **${result.loser}**\n${formatPoints(result.winnerPoints)} — ${formatPoints(result.loserPoints)}\nMargin: **${formatPoints(result.margin)}**`,
+      `💥 🏆 **${result.winner}** demolished **${result.loser}**\n${formatPoints(result.winnerPoints)} — ${formatPoints(result.loserPoints)}\nMargin: **${formatPoints(result.margin)}**`,
     );
 
     await interaction.editReply({ embeds: [embed] });
