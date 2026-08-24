@@ -16,6 +16,7 @@ const TeamSchema = z.object({
   team_name: z.string(),
   manager_name: z.string(),
   initial_score: z.number(),
+  projected_wins: z.number().min(0).max(15),
   grade: z.enum(DRAFT_GRADES),
   strengths: z.array(z.string()),
   weaknesses: z.array(z.string()),
@@ -78,17 +79,82 @@ function compactInput(input: AIDraftGradeInput): object {
   };
 }
 
-const SYSTEM_PROMPT = `You grade fantasy football drafts for fun. FantasyPros rankings and the supplied league settings are the primary evidence. Do not invent projections or facts. Compare teams relative to this league, be concise and specific, and never be mean or personal. Every roster must appear exactly once with strengths, weaknesses, and a short summary. Use the deterministic score as an objective anchor, but you may refine it based on roster construction and league fit. Do not include markdown. Draft grades are analysis only.`;
+const SYSTEM_PROMPT = `You grade fantasy football drafts for fun. The supplied player rankings, roster construction metrics, draft results, and league settings are evidence, but the writing should sound like original fantasy-football analysis rather than a data-provider report. Do not invent player facts, schedules, injuries, projections, or statistics.
+
+Every roster must appear exactly once. For each roster:
+- Give a fair initial_score and projected_wins from 0 through 15 for a hypothetical 15-game fantasy regular season.
+- Make strengths, weaknesses, and the summary lively, specific, and varied. Mention actual player names and position groups when the supplied data supports it.
+- Every strength, weakness, and summary must use genuinely different wording from every other roster. Never reuse a sentence template by merely swapping player, manager, or team names.
+- Discuss weekly ceiling, lineup stability, depth, roster construction, injury/bye-week resilience, positional leverage, or volatility instead of mechanically restating ranks.
+- FantasyPros, consensus rankings, and ADP are valid evidence. Use at most one direct reference to them per roster, and only when draft-day value tells a genuinely useful story.
+- Be playful enough for league chat, but never insulting or personal.
+
+Use the deterministic score as an objective anchor, but refine it based on the full roster and league fit. Return only valid JSON matching the requested structure, with no markdown or code fences. Draft grades and records are entertainment projections, not guarantees.`;
+
+const OUTPUT_SHAPE = `Return one JSON object with this exact shape: {"league_summary":"string","teams":[{"roster_id":1,"sleeper_user_id":"string","team_name":"string","manager_name":"string","initial_score":85,"projected_wins":9,"grade":"B","strengths":["string"],"weaknesses":["string"],"summary":"string"}]}. Use only one of these grades: ${DRAFT_GRADES.join(', ')}.`;
+
+function parseGitHubModelsResponse(content: string | null): DraftGradesAIResponse | null {
+  if (!content) return null;
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
+  try {
+    const parsed = DraftGradesAIResponseSchema.safeParse(JSON.parse(cleaned));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+async function generateWithGitHubModels(
+  payload: string,
+  correction: string,
+): Promise<DraftGradesAIResponse | null> {
+  if (!config.githubModelsToken) return null;
+  const client = new OpenAI({
+    apiKey: config.githubModelsToken,
+    baseURL: config.githubModelsBaseUrl,
+    defaultHeaders: {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  const response = await client.chat.completions.create({
+    model: config.githubModelsModel,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: `${OUTPUT_SHAPE}\n\nLeague data:\n${payload}${correction}` },
+    ],
+    response_format: { type: 'json_object' },
+  });
+  return parseGitHubModelsResponse(response.choices[0]?.message.content ?? null);
+}
+
+async function generateWithOpenAI(
+  payload: string,
+  correction: string,
+): Promise<DraftGradesAIResponse | null> {
+  if (!config.openaiApiKey || !config.openaiModel) return null;
+  const client = new OpenAI({ apiKey: config.openaiApiKey });
+  const response = await client.responses.parse({
+    model: config.openaiModel,
+    input: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: `${OUTPUT_SHAPE}\n\nLeague data:\n${payload}${correction}` },
+    ],
+    text: { format: zodTextFormat(DraftGradesAIResponseSchema, 'draft_grades') },
+  });
+  return response.output_parsed;
+}
 
 /** Returns null after two safe attempts so callers can use deterministic fallback. */
 export async function generateAIDraftGrades(
   input: AIDraftGradeInput,
 ): Promise<DraftGradesAIResponse | null> {
-  if (!config.openaiApiKey || !config.openaiModel) return null;
-
-  const client = new OpenAI({ apiKey: config.openaiApiKey });
   const expectedRosterIds = input.teams.map(({ profile }) => profile.rosterId);
   const payload = JSON.stringify(compactInput(input));
+  const providerName = config.aiProvider === 'github' ? 'GitHub Models' : 'OpenAI';
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -96,20 +162,17 @@ export async function generateAIDraftGrades(
         attempt === 1
           ? '\nYour previous response was invalid or omitted/duplicated a roster. Return every supplied roster_id exactly once and obey the schema.'
           : '';
-      const response = await client.responses.parse({
-        model: config.openaiModel,
-        input: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `${payload}${correction}` },
-        ],
-        text: { format: zodTextFormat(DraftGradesAIResponseSchema, 'draft_grades') },
-      });
-      const parsed = response.output_parsed;
+      const parsed =
+        config.aiProvider === 'github'
+          ? await generateWithGitHubModels(payload, correction)
+          : await generateWithOpenAI(payload, correction);
       if (parsed && validRosterSet(parsed, expectedRosterIds)) return parsed;
-      logger.warn(`OpenAI draft-grade attempt ${attempt + 1} returned an invalid roster set`);
+      logger.warn(
+        `${providerName} draft-grade attempt ${attempt + 1} returned invalid JSON or roster data`,
+      );
     } catch (error) {
-      const safeMessage = error instanceof Error ? error.message : 'Unknown OpenAI error';
-      logger.warn(`OpenAI draft-grade attempt ${attempt + 1} failed: ${safeMessage}`);
+      const safeMessage = error instanceof Error ? error.message : `Unknown ${providerName} error`;
+      logger.warn(`${providerName} draft-grade attempt ${attempt + 1} failed: ${safeMessage}`);
     }
   }
   return null;

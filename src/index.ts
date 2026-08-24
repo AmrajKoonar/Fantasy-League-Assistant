@@ -22,6 +22,15 @@ for (const command of commands) {
   commandMap.set(command.data.name, command);
 }
 
+function isUnknownInteraction(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 10062
+  );
+}
+
 /** Sends (or edits in) a friendly error embed, whatever state the reply is in. */
 async function replyWithError(
   interaction: Interaction,
@@ -37,7 +46,11 @@ async function replyWithError(
       await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
     }
   } catch (err) {
-    logger.error('Failed to send error reply', err);
+    if (isUnknownInteraction(err)) {
+      logger.warn('Discord rejected an error reply because the interaction had already expired.');
+    } else {
+      logger.error('Failed to send error reply', err);
+    }
   }
 }
 
@@ -89,6 +102,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     await command.execute(interaction);
   } catch (err) {
+    if (isUnknownInteraction(err)) {
+      logger.warn(
+        `Discord rejected /${interaction.commandName} before it could acknowledge the interaction. Check for duplicate bot processes or a delayed gateway connection.`,
+      );
+      return;
+    }
     if (err instanceof UserFacingError) {
       await replyWithError(interaction, err.title, err.message);
       return;

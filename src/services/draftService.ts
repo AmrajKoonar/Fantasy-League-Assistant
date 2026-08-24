@@ -89,35 +89,34 @@ export interface DraftResultPick {
 
 export interface DraftResultsView {
   draft: SleeperDraft;
-  round: number;
+  round: number | 'all';
   picks: DraftResultPick[];
   totalRounds: number;
 }
 
 /**
- * Draft picks for a given round (defaults to round 1). Maps player IDs to
- * names and roster IDs to team names. Handles auction drafts gracefully.
+ * Draft picks for one round (defaults to round 1) or every round. Maps player
+ * IDs to names and roster IDs to team names. Handles auction drafts gracefully.
  */
 export async function getDraftResults(
   leagueId: string,
-  round?: number,
+  round: number | 'all' = 1,
 ): Promise<DraftResultsView | null> {
   const draft = await getRelevantDraft(leagueId);
   if (!draft) return null;
 
   const picks = await sleeperApi.getDraftPicks(draft.draft_id);
   if (!picks || picks.length === 0) {
-    return { draft, round: round ?? 1, picks: [], totalRounds: draft.settings?.rounds ?? 0 };
+    return { draft, round, picks: [], totalRounds: draft.settings?.rounds ?? 0 };
   }
 
-  const targetRound = round ?? 1;
   const isAuction = draft.type === 'auction';
   const teamNames = await getTeamNamesByRosterId(leagueId);
   const players = await playerCache.getAllPlayers();
 
   const resultPicks: DraftResultPick[] = picks
-    .filter((p) => p.round === targetRound)
-    .sort((a, b) => a.pick_no - b.pick_no)
+    .filter((pick) => round === 'all' || pick.round === round)
+    .sort((a, b) => a.round - b.round || a.pick_no - b.pick_no)
     .map((pick) => {
       const player = players[pick.player_id];
       const metaName = [pick.metadata?.first_name, pick.metadata?.last_name]
@@ -142,7 +141,7 @@ export async function getDraftResults(
 
   return {
     draft,
-    round: targetRound,
+    round,
     picks: resultPicks,
     totalRounds: draft.settings?.rounds ?? 0,
   };

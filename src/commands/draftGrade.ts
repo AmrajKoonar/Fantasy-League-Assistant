@@ -10,7 +10,7 @@ import type { BotCommand } from '../types/commands';
 const draftGrade: BotCommand = {
   data: new SlashCommandBuilder()
     .setName('draft_grade')
-    .setDescription("Show a team's latest saved draft grade.")
+    .setDescription("Show a team's latest saved draft grade and projected record.")
     .addStringOption((option) =>
       option
         .setName('league')
