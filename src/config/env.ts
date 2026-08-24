@@ -10,6 +10,10 @@ export interface AppConfig {
   fantasyProsApiKey?: string;
   fantasyProsBaseUrl: string;
   fantasyProsDefaultRankingType: string;
+  aiProvider: 'github' | 'openai';
+  githubModelsToken?: string;
+  githubModelsBaseUrl: string;
+  githubModelsModel: string;
   openaiApiKey?: string;
   openaiModel?: string;
 }
@@ -53,6 +57,18 @@ export function loadConfig(): AppConfig {
     process.exit(1);
   }
 
+  const configuredProvider = process.env.AI_PROVIDER?.trim().toLowerCase();
+  if (configuredProvider && configuredProvider !== 'github' && configuredProvider !== 'openai') {
+    console.error('AI_PROVIDER must be either "github" or "openai".');
+    process.exit(1);
+  }
+  const aiProvider: 'github' | 'openai' =
+    configuredProvider === 'github' || configuredProvider === 'openai'
+      ? configuredProvider
+      : process.env.GITHUB_MODELS_TOKEN?.trim()
+        ? 'github'
+        : 'openai';
+
   return {
     discordToken: process.env.DISCORD_TOKEN as string,
     discordClientId: process.env.DISCORD_CLIENT_ID as string,
@@ -66,6 +82,12 @@ export function loadConfig(): AppConfig {
       'https://api.fantasypros.com/public/v2/json',
     fantasyProsDefaultRankingType:
       process.env.FANTASYPROS_DEFAULT_RANKING_TYPE?.trim().toUpperCase() || 'DRAFT',
+    aiProvider,
+    githubModelsToken: process.env.GITHUB_MODELS_TOKEN?.trim() || undefined,
+    githubModelsBaseUrl:
+      process.env.GITHUB_MODELS_BASE_URL?.trim().replace(/\/+$/, '') ||
+      'https://models.github.ai/inference',
+    githubModelsModel: process.env.GITHUB_MODELS_MODEL?.trim() || 'openai/gpt-4o-mini',
     openaiApiKey: process.env.OPENAI_API_KEY?.trim() || undefined,
     openaiModel: process.env.OPENAI_MODEL?.trim() || undefined,
   };

@@ -22,10 +22,11 @@ function cacheKey(season: string, scoring: FantasyProsScoring): string {
 export async function getFantasyProsRankings(
   season: string,
   scoring: FantasyProsScoring,
+  options: { forceRefresh?: boolean } = {},
 ): Promise<FantasyProsRankingSnapshot> {
   const key = cacheKey(season, scoring);
   const cached = cache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.snapshot;
+  if (!options.forceRefresh && cached && cached.expiresAt > Date.now()) return cached.snapshot;
 
   const existing = inFlight.get(key);
   if (existing) return existing;

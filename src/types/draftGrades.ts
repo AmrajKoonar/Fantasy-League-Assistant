@@ -94,6 +94,7 @@ export interface AIDraftGradeTeam {
   team_name: string;
   manager_name: string;
   initial_score: number;
+  projected_wins: number;
   grade: DraftGrade;
   strengths: string[];
   weaknesses: string[];
@@ -113,6 +114,11 @@ export interface DraftGradeTeamResult {
   manager_name: string;
   grade: DraftGrade;
   score: number;
+  /** New in result version 2. Optional so previously saved version-1 grades still render. */
+  projected_wins?: number;
+  projected_losses?: number;
+  projected_record?: string;
+  projected_power_rank?: number;
   strengths: string[];
   weaknesses: string[];
   summary: string;
@@ -120,7 +126,7 @@ export interface DraftGradeTeamResult {
 }
 
 export interface DraftGradesResult {
-  version: 1;
+  version: 1 | 2;
   league_id: string;
   league_nickname: string;
   league_name: string;
@@ -129,6 +135,7 @@ export interface DraftGradesResult {
   ranking_type: FantasyProsRankingType;
   scoring: FantasyProsScoring;
   generated_at: string;
+  rankings_updated_at?: string | null;
   ai_analysis_used: boolean;
   league_summary: string;
   draft_pick_value_available: boolean;
