@@ -2,7 +2,13 @@ import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.j
 import * as playerCache from '../services/playerCache';
 import { infoEmbed } from '../utils/embeds';
 import { UserFacingError } from '../utils/errors';
+import { injuryStatusEmoji } from '../utils/formatting';
 import type { BotCommand } from '../types/commands';
+
+function formatInjury(status: string): string {
+  const emoji = injuryStatusEmoji(status);
+  return `Injury: ${emoji ? `${emoji} ` : ''}${status}`;
+}
 
 const player: BotCommand = {
   data: new SlashCommandBuilder()
@@ -34,7 +40,7 @@ const player: BotCommand = {
         `Team: ${match.team ?? 'Free agent'}`,
         `Age: ${match.age ?? '—'}`,
         `Fantasy positions: ${match.fantasy_positions?.join(', ') ?? '—'}`,
-        match.injury_status ? `Injury: ${match.injury_status}` : null,
+        match.injury_status ? formatInjury(match.injury_status) : null,
         `Sleeper ID: \`${match.player_id}\``,
       ]
         .filter(Boolean)

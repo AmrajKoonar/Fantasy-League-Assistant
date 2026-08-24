@@ -56,7 +56,7 @@ const tradedPicks: BotCommand = {
       .sort((a, b) => a.season.localeCompare(b.season) || a.round - b.round);
 
     for (const pick of sorted) {
-      const line = `Round ${pick.round} (orig. ${name(pick.roster_id)}) → **${name(pick.owner_id)}**`;
+      const line = `🔁 Round ${pick.round} (orig. ${name(pick.roster_id)}) → **${name(pick.owner_id)}**`;
       const list = bySeason.get(pick.season) ?? [];
       list.push(line);
       bySeason.set(pick.season, list);

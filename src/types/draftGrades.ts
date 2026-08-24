@@ -121,6 +121,8 @@ export interface DraftGradeTeamResult {
   projected_power_rank?: number;
   strengths: string[];
   weaknesses: string[];
+  /** Deterministic roster facts shown separately from the AI-written feedback. */
+  advanced_metrics?: string[];
   summary: string;
   metrics: DraftGradeMetrics;
 }

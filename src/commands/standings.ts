@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getStandings } from '../services/standingsService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { formatCodeTable, formatRecord } from '../utils/formatting';
+import { formatCodeTable, formatRank, formatRecord } from '../utils/formatting';
 import { formatPoints } from '../utils/sleeperPoints';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
@@ -32,6 +32,7 @@ const standings: BotCommand = {
     });
 
     const entries = await getStandings(guildLeague.league_id);
+    const highestPointsFor = Math.max(0, ...entries.map((entry) => entry.pointsFor));
 
     const table = formatCodeTable(
       [
@@ -42,8 +43,8 @@ const standings: BotCommand = {
         { header: 'PA', align: 'right' },
       ],
       entries.map((entry) => [
-        entry.rank,
-        entry.teamName,
+        formatRank(entry.rank),
+        `${highestPointsFor > 0 && entry.pointsFor === highestPointsFor ? '🔥 ' : ''}${entry.teamName}`,
         formatRecord(entry.wins, entry.losses, entry.ties),
         formatPoints(entry.pointsFor),
         formatPoints(entry.pointsAgainst),

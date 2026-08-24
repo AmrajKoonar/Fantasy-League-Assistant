@@ -59,8 +59,8 @@ const weeklyRecap: BotCommand = {
     const embed = infoEmbed(title);
     if (recap.highest) {
       embed.addFields({
-        name: '🔥 Highest score',
-        value: `${recap.highest.teamName} — ${formatPoints(recap.highest.points)}`,
+        name: 'Highest score',
+        value: `🔥 ${recap.highest.teamName} — ${formatPoints(recap.highest.points)}`,
         inline: false,
       });
     }
@@ -81,7 +81,7 @@ const weeklyRecap: BotCommand = {
     if (recap.blowout) {
       embed.addFields({
         name: '💥 Biggest blowout',
-        value: `${recap.blowout.winner} over ${recap.blowout.loser} — margin ${formatPoints(recap.blowout.margin)}`,
+        value: `🏆 ${recap.blowout.winner} over ${recap.blowout.loser} — margin ${formatPoints(recap.blowout.margin)}`,
         inline: false,
       });
     }

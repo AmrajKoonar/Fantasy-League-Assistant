@@ -14,14 +14,55 @@ function configureTestEnvironment(): void {
 }
 
 function profile(rosterId: number): DraftGradeTeamProfile {
+  const players = [
+    {
+      sleeperPlayerId: `player-${rosterId}-a`,
+      name: `Player ${rosterId} Alpha`,
+      position: 'RB',
+      team: 'SEA',
+      isStarter: true,
+      isReserve: false,
+      isTaxi: false,
+      injuryStatus: null,
+      fantasyprosOverallRank: rosterId,
+      fantasyprosPositionRank: `RB${rosterId}`,
+      fantasyprosTier: 1,
+      fantasyprosAdp: rosterId + 1,
+      rankingMatchConfidence: 'high' as const,
+      isUnmatched: false,
+    },
+    {
+      sleeperPlayerId: `player-${rosterId}-b`,
+      name: `Player ${rosterId} Beta`,
+      position: 'WR',
+      team: 'BUF',
+      isStarter: false,
+      isReserve: true,
+      isTaxi: false,
+      injuryStatus: rosterId === 1 ? 'Questionable' : null,
+      fantasyprosOverallRank: 50 + rosterId,
+      fantasyprosPositionRank: `WR${rosterId}`,
+      fantasyprosTier: 5,
+      fantasyprosAdp: 50 + rosterId,
+      rankingMatchConfidence: 'high' as const,
+      isUnmatched: false,
+    },
+  ];
   return {
     rosterId,
     sleeperUserId: `user-${rosterId}`,
     discordUserId: null,
     teamName: `Team ${rosterId}`,
     managerName: `Manager ${rosterId}`,
-    players: [],
-    draftPicks: [],
+    players,
+    draftPicks: [
+      {
+        playerId: players[0].sleeperPlayerId,
+        pickNumber: 1,
+        overallRank: players[0].fantasyprosOverallRank,
+        valueDelta: -12,
+      },
+    ],
   };
 }
 
@@ -62,6 +103,13 @@ test('normalization guarantees one A+, one F, scores, and exact feedback counts'
     assert.equal(Number.isFinite(team.score), true);
     assert.ok(team.strengths.length >= 1);
     assert.ok(team.weaknesses.length >= 1);
+    assert.ok((team.advanced_metrics?.length ?? 0) >= 2);
+    assert.ok((team.advanced_metrics?.length ?? 0) <= 3);
+    const roster = profiles.find((entry) => entry.rosterId === team.roster_id);
+    assert.ok(roster);
+    for (const line of [...team.strengths, ...team.weaknesses]) {
+      assert.ok(roster.players.some((player) => line.includes(player.name)));
+    }
     assert.equal((team.projected_wins ?? 0) + (team.projected_losses ?? 0), 15);
     assert.match(team.projected_record ?? '', /^\d{1,2}-\d{1,2}$/);
     if (['A+', 'A', 'A-', 'B+'].includes(team.grade) || team.score >= 85) {
@@ -79,6 +127,8 @@ test('normalization guarantees one A+, one F, scores, and exact feedback counts'
     result.map((team) => team.projected_power_rank).sort((a, b) => (a ?? 0) - (b ?? 0)),
     Array.from({ length: 12 }, (_, index) => index + 1),
   );
+  const injuredTeam = result.find((team) => team.roster_id === 1);
+  assert.doesNotMatch(injuredTeam?.advanced_metrics?.join(' ') ?? '', /🟡|🟠|🔴/);
 });
 
 test('record projection blends AI judgment and limits provider references per team', async () => {
@@ -176,4 +226,65 @@ test('FantasyPros matching uses normalized name, position, and team confidence',
   );
   assert.equal(unmatched.confidence, 'none');
   assert.equal(unmatched.ranking, null);
+});
+
+test('wide tables use a mobile-safe stacked layout', async () => {
+  const { formatCodeTable } = await import('../utils/formatting.js');
+  const output = formatCodeTable(
+    [
+      { header: '#' },
+      { header: 'Team', maxWidth: 28 },
+      { header: 'Record' },
+      { header: 'PF' },
+      { header: 'PA' },
+    ],
+    [[1, 'A very long fantasy team name that changes', '10-2', '1234.50', '1100.25']],
+  );
+  assert.doesNotMatch(output, /```/);
+  assert.match(output, /\*\*1\. A very long fantasy team/);
+  assert.match(output, /\*\*Record:\*\* 10-2/);
+  assert.match(output, /\*\*PF:\*\* 1234\.50/);
+});
+
+test('wide tables can opt back into the original code-block layout', async () => {
+  const { formatCodeTable } = await import('../utils/formatting.js');
+  const output = formatCodeTable(
+    [
+      { header: 'Pick' },
+      { header: 'Player', maxWidth: 24 },
+      { header: 'Pos' },
+      { header: 'NFL' },
+      { header: 'Fantasy Team', maxWidth: 24 },
+    ],
+    [[121, 'Houston Texans', 'DEF', 'HOU', 'A long fantasy team name']],
+    { forceCodeBlock: true },
+  );
+  assert.match(output, /^```/);
+  assert.match(output, /Pick\s+Player\s+Pos\s+NFL\s+Fantasy Team/);
+});
+
+test('rank and injury helpers use the requested emoji markers', async () => {
+  const { formatRank, injuryStatusEmoji } = await import('../utils/formatting.js');
+  assert.equal(formatRank(1), '🥇');
+  assert.equal(formatRank(2), '🥈');
+  assert.equal(formatRank(3), '🥉');
+  assert.equal(formatRank(4), '4');
+  assert.equal(injuryStatusEmoji('Questionable'), '🟡');
+  assert.equal(injuryStatusEmoji('Doubtful'), '🟠');
+  assert.equal(injuryStatusEmoji('Out'), '🔴');
+  assert.equal(injuryStatusEmoji('IR'), '🔴');
+});
+
+test('preseason phase weeks default fantasy commands to week one', async () => {
+  configureTestEnvironment();
+  const { fantasyWeekFromNflState } = await import('./matchupService.js');
+  const baseState = {
+    week: 3,
+    display_week: 3,
+    season: '2026',
+    league_season: '2026',
+    previous_season: '2025',
+  };
+  assert.equal(fantasyWeekFromNflState({ ...baseState, season_type: 'pre' }), 1);
+  assert.equal(fantasyWeekFromNflState({ ...baseState, season_type: 'regular' }), 3);
 });

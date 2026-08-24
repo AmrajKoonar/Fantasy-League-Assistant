@@ -1,14 +1,17 @@
 import { EmbedBuilder } from 'discord.js';
 import { infoEmbed, successEmbed } from '../utils/embeds';
-import { formatCodeTable, truncate } from '../utils/formatting';
+import { formatCodeTable, formatRank, truncate } from '../utils/formatting';
 import type { DraftGradesResult, DraftGradeTeamResult } from '../types/draftGrades';
 
-const LEAGUE_FOOTER =
-  'Draft grades use Sleeper roster data, FantasyPros rankings, and AI analysis. These grades are for fun and may not be perfect.';
-const TEAM_FOOTER = 'Generated using Sleeper data, FantasyPros rankings, and AI analysis.';
+const DRAFT_GRADE_FOOTER =
+  'Draft grades use Sleeper roster data, FantasyPros rankings, and AI analysis';
 
 function numbered(lines: string[]): string {
   return lines.map((line, index) => `${index + 1}. ${line}`).join('\n');
+}
+
+function bulleted(lines: string[]): string {
+  return lines.map((line) => `• ${line}`).join('\n');
 }
 
 function projectedRecord(team: DraftGradeTeamResult): string {
@@ -20,7 +23,7 @@ function projectedRecord(team: DraftGradeTeamResult): string {
 export function draftGradeTeamEmbed(
   team: DraftGradeTeamResult,
   leagueName: string,
-  fullDisclaimer = false,
+  _fullDisclaimer = false,
 ): EmbedBuilder {
   const manager = team.discord_user_id ? `<@${team.discord_user_id}>` : team.manager_name;
   return infoEmbed(
@@ -28,11 +31,14 @@ export function draftGradeTeamEmbed(
     `Manager: ${truncate(manager, 200)}\nLeague: ${truncate(leagueName, 200)}\nGrade: **${team.grade}**\nScore: **${team.score}/100**\nProjected Final Record: **${projectedRecord(team)}**`,
   )
     .addFields(
-      { name: 'Strengths', value: numbered(team.strengths), inline: false },
-      { name: 'Weaknesses', value: numbered(team.weaknesses), inline: false },
-      { name: 'Summary', value: team.summary, inline: false },
+      { name: '📈 Strengths', value: numbered(team.strengths), inline: false },
+      { name: '📉 Weaknesses', value: numbered(team.weaknesses), inline: false },
+      ...(team.advanced_metrics?.length
+        ? [{ name: '📊 Advanced Metrics', value: bulleted(team.advanced_metrics), inline: false }]
+        : []),
+      { name: '📋 Summary', value: team.summary, inline: false },
     )
-    .setFooter({ text: fullDisclaimer ? LEAGUE_FOOTER : TEAM_FOOTER });
+    .setFooter({ text: DRAFT_GRADE_FOOTER });
 }
 
 export function draftGradesIntroEmbed(result: DraftGradesResult): EmbedBuilder {
@@ -48,7 +54,7 @@ export function draftGradesIntroEmbed(result: DraftGradesResult): EmbedBuilder {
   return successEmbed(
     'Draft Grades Created',
     `League: ${truncate(result.league_name, 200)}\nTeams graded: ${result.teams.length}\nRanking source: FantasyPros (${result.ranking_type}, ${result.scoring})${rankingFreshness}\nAI analysis: ${result.ai_analysis_used ? 'enabled' : 'fallback metrics used'}\nNote: Grades and 15-game record projections are for fun and may not be perfect.${pickNote}`,
-  ).setFooter({ text: LEAGUE_FOOTER });
+  ).setFooter({ text: DRAFT_GRADE_FOOTER });
 }
 
 export function draftGradeEmbeds(result: DraftGradesResult): EmbedBuilder[] {
@@ -71,7 +77,7 @@ export function projectedPowerRankingsEmbed(result: DraftGradesResult): EmbedBui
       { header: 'Record', align: 'right' },
     ],
     ranked.map((team, index) => [
-      index + 1,
+      formatRank(index + 1),
       team.team_name,
       team.grade,
       team.score,

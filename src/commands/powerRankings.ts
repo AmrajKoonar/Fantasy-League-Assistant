@@ -3,7 +3,7 @@ import { resolveLeagueForCommand } from '../services/leagueResolver';
 import { getPowerRankings, POWER_FORMULA } from '../services/powerRankingService';
 import { handleLeagueAutocomplete } from './shared';
 import { infoEmbed } from '../utils/embeds';
-import { formatCodeTable, formatRecord } from '../utils/formatting';
+import { formatCodeTable, formatRank, formatRecord } from '../utils/formatting';
 import { formatPoints } from '../utils/sleeperPoints';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
@@ -32,6 +32,7 @@ const powerRankings: BotCommand = {
     });
 
     const rankings = await getPowerRankings(guildLeague.league_id);
+    const highestPointsFor = Math.max(0, ...rankings.map((entry) => entry.pointsFor));
 
     const table = formatCodeTable(
       [
@@ -43,13 +44,14 @@ const powerRankings: BotCommand = {
         { header: 'Power', align: 'right' },
       ],
       rankings.map((entry) => [
-        entry.rank,
-        entry.teamName,
+        formatRank(entry.rank),
+        `${highestPointsFor > 0 && entry.pointsFor === highestPointsFor ? '🔥 ' : ''}${entry.teamName}`,
         formatRecord(entry.wins, entry.losses, entry.ties),
         formatPoints(entry.pointsFor),
         `${entry.pointDiff >= 0 ? '+' : ''}${formatPoints(entry.pointDiff)}`,
         entry.powerScore.toFixed(2),
       ]),
+      { forceCodeBlock: true },
     );
 
     const embed = infoEmbed(

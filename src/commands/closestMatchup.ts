@@ -51,9 +51,11 @@ const closestMatchup: BotCommand = {
     }
 
     const nailBiter = result.margin <= 5 ? '\n😰 What a nail-biter!' : '';
+    const teamA = `${result.pointsA > result.pointsB ? '🏆 ' : ''}${result.teamA}`;
+    const teamB = `${result.pointsB > result.pointsA ? '🏆 ' : ''}${result.teamB}`;
     const embed = infoEmbed(
       title,
-      `**${result.teamA}** ${formatPoints(result.pointsA)} — ${formatPoints(result.pointsB)} **${result.teamB}**\nMargin: **${formatPoints(result.margin)}**${nailBiter}`,
+      `**${teamA}** ${formatPoints(result.pointsA)} — ${formatPoints(result.pointsB)} **${teamB}**\nMargin: **${formatPoints(result.margin)}**${nailBiter}`,
     );
 
     await interaction.editReply({ embeds: [embed] });
