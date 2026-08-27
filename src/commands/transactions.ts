@@ -8,28 +8,28 @@ import { formatCodeTable } from '../utils/formatting';
 import { requireGuild } from '../utils/permissions';
 import type { BotCommand } from '../types/commands';
 
-const TYPE_LABELS: Record<string, string> = {
-  trade: '🔁 Trade',
-  waiver: '📥 Waiver',
-  free_agent: '🆓 Free agent',
-  commissioner: '🛠️ Commissioner',
+const TYPE_TAGS: Record<string, string> = {
+  trade: '🔁',
+  waiver: 'W',
+  free_agent: 'FA',
+  commissioner: 'C',
 };
 
 function transactionRows(tx: TransactionView): unknown[][] {
-  const label = TYPE_LABELS[tx.type] ?? `📄 ${tx.type}`;
+  const tag = TYPE_TAGS[tx.type] ?? tx.type.slice(0, 3).toUpperCase();
   const faab = tx.faabSpent !== null && tx.faabSpent > 0 ? `$${tx.faabSpent}` : '—';
   const rows: unknown[][] = [];
 
   for (const add of tx.adds) {
-    rows.push([label, `➕ ${add.playerName}`, add.teamName, tx.status, faab]);
+    rows.push([`${tag}➕`, add.playerName, add.teamName, faab]);
   }
   for (const drop of tx.drops) {
-    rows.push([label, `➖ ${drop.playerName}`, drop.teamName, tx.status, faab]);
+    rows.push([`${tag}➖`, drop.playerName, drop.teamName, faab]);
   }
   if (tx.adds.length === 0 && tx.drops.length === 0 && tx.teamsInvolved.length > 0) {
-    rows.push([label, tx.teamsInvolved.join(' ↔ '), '—', tx.status, faab]);
+    rows.push([tag, tx.teamsInvolved.join(' ↔ '), '—', faab]);
   }
-  if (rows.length === 0) rows.push([label, 'No player details', '—', tx.status, faab]);
+  if (rows.length === 0) rows.push([tag, 'No player details', '—', faab]);
   return rows;
 }
 
@@ -79,11 +79,10 @@ const transactions: BotCommand = {
     const rows = views.flatMap(transactionRows).slice(0, 40);
     const table = formatCodeTable(
       [
-        { header: 'Type', maxWidth: 14 },
-        { header: 'Activity', maxWidth: 26 },
-        { header: 'Team', maxWidth: 20 },
-        { header: 'Status', maxWidth: 12 },
-        { header: 'FAAB', align: 'right', maxWidth: 7 },
+        { header: 'Action', maxWidth: 6 },
+        { header: 'Player', maxWidth: 20 },
+        { header: 'Team', maxWidth: 14 },
+        { header: 'FAAB', align: 'right', maxWidth: 5 },
       ],
       rows,
       { forceCodeBlock: true },

@@ -70,18 +70,13 @@ const matchups: BotCommand = {
           '',
           '',
           '—',
-          'No opponent',
         ];
       }
       const [a, b] = pairing.teams;
-      let verdict = 'Tied';
       let winnerRosterId: number | null = null;
       if (a.points !== b.points) {
         const leader = a.points > b.points ? a : b;
         winnerRosterId = leader.rosterId;
-        verdict = `${leader.teamName} leads`;
-      } else if (a.points === 0) {
-        verdict = 'Not started';
       }
       return [
         `${winnerRosterId === a.rosterId ? '🏆 ' : ''}${highScoreMarker(a.points)}${a.teamName}`,
@@ -89,7 +84,6 @@ const matchups: BotCommand = {
         'vs',
         formatPoints(b.points),
         `${winnerRosterId === b.rosterId ? '🏆 ' : ''}${highScoreMarker(b.points)}${b.teamName}`,
-        verdict,
       ];
     });
     const table = formatCodeTable(
@@ -99,7 +93,6 @@ const matchups: BotCommand = {
         { header: '' },
         { header: 'Score', align: 'right' },
         { header: 'Team', maxWidth: 20 },
-        { header: 'Status', maxWidth: 24 },
       ],
       rows,
       { forceCodeBlock: true },

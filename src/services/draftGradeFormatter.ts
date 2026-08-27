@@ -83,6 +83,7 @@ export function projectedPowerRankingsEmbed(result: DraftGradesResult): EmbedBui
       team.score,
       projectedRecord(team),
     ]),
+    { forceCodeBlock: true },
   );
   return infoEmbed(
     `Projected Power Rankings — ${truncate(result.league_name, 180)}`,
